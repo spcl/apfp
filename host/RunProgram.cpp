@@ -25,32 +25,22 @@ void Run(std::string const &kernel_path) {
                                      exponent_device, sign_device, 0, 0, 0);
 }
 
-#ifndef HLSLIB_SIMULATE_OPENCL
-
-void RunHardwareEmulation() {
-    const auto env_str = "XCL_EMULATION_MODE=hw_emu";
-    putenv(const_cast<char *>(env_str));
-    Run(kBuildDir + std::string("MatrixMultiplication_hw_emu.xclbin"));
-}
-
-void RunHardware() {
-    Run(kBuildDir + std::string("MatrixMultiplication_hw.xclbin"));
-}
-
-#endif
-
 int main(int argc, char **argv) {
 #ifndef HLSLIB_SIMULATE_OPENCL
     // Parse input
     if (argc < 2) {
-        std::cerr << "Usage: " << argv[0] << " [sw/hw_emu/hw]";
+        std::cerr << "Usage: " << argv[0] << " [hw_emu/hw]\n";
         return 1;
     }
     const std::string mode_str(argv[1]);
     if (mode_str == "hw_emu") {
-        RunHardwareEmulation();
+        const auto emu_str = "XCL_EMULATION_MODE=hw_emu";
+        putenv(const_cast<char *>(emu_str));
+        const auto conf_str = std::string("EMCONFIG_PATH=") + kBuildDir;
+        putenv(const_cast<char *>(conf_str.c_str()));
+        Run(kBuildDir + std::string("/MatrixMultiplication_hw_emu.xclbin"));
     } else if (mode_str == "hw") {
-        RunHardware();
+        Run(kBuildDir + std::string("/MatrixMultiplication_hw.xclbin"));
     } else {
         throw std::invalid_argument("Invalid mode specified.");
     }

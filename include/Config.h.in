@@ -1,4 +1,4 @@
 #pragma once
 
-constexpr int kMantissaBits = ${APFP_MANTISSA_BITS};
+constexpr int kBits = ${APFP_BITS};
 constexpr auto kBuildDir = "${CMAKE_BINARY_DIR}";

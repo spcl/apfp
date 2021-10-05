@@ -1,4 +1,5 @@
 #pragma once
 
 constexpr int kBits = ${APFP_BITS};
+constexpr int kBytes = kBits / 8;
 constexpr auto kBuildDir = "${CMAKE_BINARY_DIR}";

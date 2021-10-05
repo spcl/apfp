@@ -1,20 +1,15 @@
 #pragma once
 
-#include <gmp.h>
+#include <ap_int.h>
 
 #include "Config.h"
+#include "PackedFloat.h"
 
-constexpr int kMantissaBytes = kMantissaBits / 8;
+using DramLine = ap_uint<512>;
+static_assert(sizeof(DramLine) == 64, "DRAM lines must be tightly packed.");
 
-using Limb = mp_limb_t;
-using Exponent = mp_exp_t;
-using Sign = int;
+constexpr int kLinesPerNumber = sizeof(PackedFloat) / sizeof(DramLine);
+static_assert(sizeof(PackedFloat) % sizeof(DramLine) == 0, "Numbers must be a multiple of DRAM lines.");
 
-struct Mantissa {
-    Limb limbs[kMantissaBytes / sizeof(Limb)];
-};
-static_assert(sizeof(Mantissa) == kMantissaBytes, "Mantissa must be tightly packed.");
-
-extern "C" void MatrixMultiplication(Mantissa *mantissa_a, Exponent *exponent_a, Sign *sign_a, Mantissa *mantissa_b,
-                                     Exponent *exponent_b, Sign *sign_b, Mantissa *mantissa_c, Exponent *exponent_c,
-                                     Sign *sign_c, int n, int m, int k);
+extern "C" void MatrixMultiplication(DramLine const *a, DramLine const *b, DramLine const *c_read, DramLine *c_write,
+                                     int n, int m, int k);

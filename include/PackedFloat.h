@@ -15,6 +15,7 @@ using Exponent = mp_exp_t;
 /// Sign convention: 0 is positive, anything else is negative
 using Sign = int;  // Word-aligned because this probably makes copies faster on the CPU
 constexpr int kMantissaBytes = kBytes - sizeof(Exponent) - sizeof(Sign);
+constexpr int kMantissaBits = 8 * kMantissaBytes;
 using Mantissa = uint8_t[kMantissaBytes];
 
 /// Full floating point number densely packed to fit into a 512-bit DRAM line.

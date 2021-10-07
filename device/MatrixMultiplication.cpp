@@ -107,7 +107,7 @@ void Compute(hlslib::Stream<PackedFloat> &a_in, hlslib::Stream<PackedFloat> &b_i
                 const bool should_be_shifted = !IsLastBitSet(_m_mantissa);
                 ap_uint<kMantissaBits> m_mantissa = should_be_shifted ? _m_mantissa : (_m_mantissa >> 1);
                 // The sign is just the XOR of the existing signs
-                const bool m_sign = (a.sign != 0) ^ (b.sign != 0);
+                const bool m_sign = a.sign != b.sign;
                 // Add up exponents. If the most significant bit was 1, we're done. Otherwise subtract 1 due to the
                 // shift.
                 const Exponent m_exponent = a.exponent + b.exponent - should_be_shifted;

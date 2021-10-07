@@ -31,8 +31,8 @@ typename std::enable_if<(bits > kMultBaseBits), ap_uint<2 * bits>>::type _Karats
     bool a0a1b0b1_is_neg = a0a1_is_neg != b0b1_is_neg;
     // Recurse on |a_0 - a_1| * |b_0 - b_1|
     Full a0a1b0b1 = _Karatsuba<bits / 2>(a0a1, b0b1);
-    ap_int<bits + 1> a0a1b0b1_signed = a0a1b0b1_is_neg ? -ap_int<bits>(a0a1b0b1) : ap_int<bits + 1>(a0a1b0b1);
-    ap_uint<bits + 2> z1 = a0a1b0b1_signed + z0 + z2;
+    ap_int<bits + 2> a0a1b0b1_signed = a0a1b0b1_is_neg ? -ap_int<bits + 1>(a0a1b0b1) : ap_int<bits + 2>(a0a1b0b1);
+    ap_uint<bits + 2> z1 = ap_uint<bits + 2>(a0a1b0b1_signed) + z0 + z2;
 
     // Align everything and combine
     ap_uint<(2 * bits)> z0z2 = z0 + (ap_uint<(2 * bits)>(z2) << bits);

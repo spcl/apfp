@@ -57,4 +57,7 @@ TEST_CASE("Karatsuba") {
     a = 1234567890;
     b = 6789012345;
     REQUIRE(MultOverflow(a, b) == Karatsuba(a, b));
+    a = std::numeric_limits<uint64_t>::max();
+    b = std::numeric_limits<uint64_t>::max();
+    REQUIRE(MultOverflow(a, b) == Karatsuba(a, b));
 }

@@ -6,6 +6,7 @@ template <int bits>
 typename std::enable_if<(bits > kMultBaseBits), ap_uint<2 * bits>>::type _Karatsuba(ap_uint<bits> const &a,
                                                                                     ap_uint<bits> const &b) {
 #pragma HLS INLINE
+    static_assert(bits % 2 == 0, "Number of bits must be even.");
     using Full = ap_uint<bits>;
     using Half = ap_uint<bits / 2>;
 
@@ -22,20 +23,20 @@ typename std::enable_if<(bits > kMultBaseBits), ap_uint<2 * bits>>::type _Karats
     // Compute |a_0 - a_1| and sign(a_0 - a_1)
     bool a0a1_is_neg = a0 < a1;
     Half a0a1 = a0a1_is_neg ? (a1 - a0) : (a0 - a1);
-    // Compute |b_0 - b_1| and sign(b_0 - b_1)
-    bool b0b1_is_neg = b0 < b1;
-    Half b0b1 = b0b1_is_neg ? (b1 - b0) : (b0 - b1);
+    // Compute |b_1 - b_0| and sign(b_1 - b_0)
+    bool b0b1_is_neg = b1 < b0;
+    Half b0b1 = b0b1_is_neg ? (b0 - b1) : (b1 - b0);
 
     // XOR the two signs to get the final sign
     bool a0a1b0b1_is_neg = a0a1_is_neg != b0b1_is_neg;
     // Recurse on |a_0 - a_1| * |b_0 - b_1|
     Full a0a1b0b1 = _Karatsuba<bits / 2>(a0a1, b0b1);
-    ap_int<bits + 1> a0a1b0b1_signed = a0a1b0b1_is_neg ? ap_int<bits + 1>(a0a1b0b1) : -ap_int<bits>(a0a1b0b1);
+    ap_int<bits + 1> a0a1b0b1_signed = a0a1b0b1_is_neg ? -ap_int<bits>(a0a1b0b1) : ap_int<bits + 1>(a0a1b0b1);
     ap_uint<bits + 2> z1 = a0a1b0b1_signed + z0 + z2;
 
     // Align everything and combine
-    ap_uint<(2 * bits)> z0z2 = z0 + (z2 << bits);
-    ap_uint<(2 * bits)> z1_aligned = z1 << (bits / 2);
+    ap_uint<(2 * bits)> z0z2 = z0 + (ap_uint<(2 * bits)>(z2) << bits);
+    ap_uint<(2 * bits)> z1_aligned = ap_uint<(2 * bits)>(z1) << (bits / 2);
     ap_uint<(2 * bits)> z = z1_aligned + z0z2;
 
     return z;

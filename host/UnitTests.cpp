@@ -2,6 +2,7 @@
 
 #include <catch.hpp>
 #include <iostream>
+#include <limits>
 
 #include "Karatsuba.h"
 #include "PackedFloat.h"
@@ -31,8 +32,29 @@ TEST_CASE("PackedFloat to/from GMP Conversion") {
     }
 }
 
+template <int bits>
+ap_uint<2 * bits> MultOverflow(ap_uint<bits> const &a, ap_uint<bits> const &b) {
+    return ap_uint<2 * bits>(a) * ap_uint<2 * bits>(b);
+}
+
 TEST_CASE("Karatsuba") {
-    const ap_uint<kBits> a = 12345;
-    const ap_uint<kBits> b = 67890;
-    REQUIRE(a * b == Karatsuba(a, b));
+    ap_uint<kBits> a, b;
+    a = 1;
+    b = 1;
+    REQUIRE(MultOverflow(a, b) == Karatsuba(a, b));
+    a = 0;
+    b = 1;
+    REQUIRE(MultOverflow(a, b) == Karatsuba(a, b));
+    a = 0;
+    b = 0;
+    REQUIRE(MultOverflow(a, b) == Karatsuba(a, b));
+    a = -1;
+    b = 1;
+    REQUIRE(MultOverflow(a, b) == Karatsuba(a, b));
+    a = 12345;
+    b = 67890;
+    REQUIRE(MultOverflow(a, b) == Karatsuba(a, b));
+    a = 1234567890;
+    b = 6789012345;
+    REQUIRE(MultOverflow(a, b) == Karatsuba(a, b));
 }

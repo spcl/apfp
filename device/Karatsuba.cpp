@@ -3,8 +3,8 @@
 #include <type_traits>  // std::enable_if
 
 template <int bits>
-typename std::enable_if<(bits > kMultBaseBits), ap_uint<2 * bits>>::type _Karatsuba(ap_uint<bits> const &a,
-                                                                                    ap_uint<bits> const &b) {
+auto _Karatsuba(ap_uint<bits> const &a, ap_uint<bits> const &b) ->
+    typename std::enable_if<(bits > kMultBaseBits), ap_uint<2 * bits>>::type {
 #pragma HLS INLINE
     static_assert(bits % 2 == 0, "Number of bits must be even.");
     using Full = ap_uint<bits>;
@@ -44,8 +44,8 @@ typename std::enable_if<(bits > kMultBaseBits), ap_uint<2 * bits>>::type _Karats
 
 // Bottom out using SFINAE when the bit width is lower or equal to the specified base number of bits
 template <int bits>
-typename std::enable_if<(bits <= kMultBaseBits), ap_uint<2 * bits>>::type _Karatsuba(ap_uint<bits> const &a,
-                                                                                     ap_uint<bits> const &b) {
+auto _Karatsuba(ap_uint<bits> const &a, ap_uint<bits> const &b) ->
+    typename std::enable_if<(bits <= kMultBaseBits), ap_uint<2 * bits>>::type {
 #pragma HLS INLINE
     return a * b;
 }

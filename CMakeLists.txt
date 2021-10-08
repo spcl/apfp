@@ -7,6 +7,8 @@ set(CMAKE_CXX_STANDARD 17)
 set(APFP_PLATFORM "xilinx_u280_xdma_201920_3" CACHE STRING "Platform string for Vitis.")
 set(APFP_BITS 1024 CACHE STRING "Number of bits to use for a floating point number, including mantissa, exponent, and sign.")
 set(APFP_MULT_BASE_BITS 16 CACHE STRING "Number of bits to bottom out the multiplication at and use native multiplication.")
+set(APFP_TILE_SIZE_N 32 CACHE STRING "Tile size in the N-dimension when running matrix-matrix multiplication.")
+set(APFP_TILE_SIZE_M 32 CACHE STRING "Tile size in the M-dimension when running matrix-matrix multiplication.")
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_SOURCE_DIR}/hlslib/cmake ${CMAKE_SOURCE_DIR}/cmake)
 
@@ -18,7 +20,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wpedantic")
 
 configure_file(include/Config.h.in Config.h)
 
-set(APFP_KERNEL_FILES device/MatrixMultiplication.cpp device/Karatsuba.cpp)
+set(APFP_KERNEL_FILES device/MatrixMultiplication.cpp device/MultiplyAccumulate.cpp device/Karatsuba.cpp)
 
 # Setup FPGA kernel targets
 add_vitis_kernel(MatrixMultiplication FILES ${APFP_KERNEL_FILES}

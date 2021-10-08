@@ -6,6 +6,7 @@
 #include <cstdint>    // uint8_t
 #include <cstring>    // std::memcpy
 #include <iomanip>    // std::setfill, std::setw
+#include <iostream>
 #include <sstream>
 
 #include "Config.h"
@@ -32,26 +33,22 @@ class PackedFloat {
     inline PackedFloat &operator=(PackedFloat const &) = default;
     inline PackedFloat &operator=(PackedFloat &&) = default;
 
+    inline PackedFloat(Sign const &_sign, Exponent const &_exponent, void const *const _mantissa)
+        : exponent(_exponent), sign(_sign) {
+        std::memcpy(mantissa, _mantissa, kMantissaBytes);
+    }
+
 #ifndef HLSLIB_SYNTHESIS  // Interoperability with GMP, but only on the host side
     inline PackedFloat(mpf_t num) {
-        const auto bytes_to_copy = std::min(sizeof(Limb) * std::abs(num->_mp_size), size_t(kBytes));
-        // Copy only the limbs actually used by GMP, as the remainder is uninitialized
+        const int num_limbs = std::abs(num->_mp_size);
+        const auto bytes_to_copy = std::min(size_t(kMantissaBytes), sizeof(Limb) * num_limbs);
         std::memcpy(mantissa, num->_mp_d, bytes_to_copy);
-        // Zero out unused bytes
-        std::memset(mantissa + bytes_to_copy, 0x0, kBytes - bytes_to_copy);
-        exponent = num->_mp_exp;
+        std::memset(mantissa + sizeof(Limb) * num_limbs, 0x0, kMantissaBytes - bytes_to_copy);
+        exponent = num->_mp_exp - num_limbs + 1;
         sign = num->_mp_size < 0;  // 1 if negative, 0 otherwise
     }
 
-    inline void ToGmp(mpf_t num) {
-        // Round the supported precision up to the numb
-        const auto bytes_to_copy = std::min(8 * mpf_get_prec(num), mp_bitcnt_t(kBytes));
-        const int limbs_to_copy = (bytes_to_copy + sizeof(Limb) - 1) / sizeof(Limb);
-        num->_mp_exp = exponent;
-        // Consider all limbs to be active
-        num->_mp_size = (sign != 0) ? -limbs_to_copy : limbs_to_copy;
-        std::memcpy(num->_mp_d, mantissa, bytes_to_copy);
-    }
+    inline void ToGmp(mpf_t num);
 
     inline PackedFloat &operator=(mpf_t num) {
         *this = PackedFloat(num);
@@ -69,17 +66,32 @@ class PackedFloat {
     inline std::string ToString() const {
         std::stringstream ss;
         ss << ((Sign() < 0) ? "-" : "+") << std::hex;
-        constexpr auto kNumLimbs = kMantissaBytes / sizeof(Limb);
-        for (size_t i = 0; i < kNumLimbs; ++i) {
-            ss << std::setfill('0') << std::setw(2 * sizeof(Limb)) << reinterpret_cast<Limb const *>(mantissa)[i]
-               << "|";
+        constexpr auto i_end = (kMantissaBytes + sizeof(Limb) + 1) / sizeof(Limb);
+        for (size_t i = 0; i < i_end; ++i) {
+            ss << std::setfill('0') << std::setw(2 * sizeof(Limb)) << (*this)[i];
+            if (i < i_end - 1) {
+                ss << "|";
+            }
         }
-        int tail = 0;
-        for (size_t i = 0; i < kBytes % sizeof(Limb); ++i) {
-            tail += mantissa[kBytes - (kBytes % sizeof(Limb)) + i] << i;
-        }
-        ss << tail << "e" << std::dec << exponent;
+        ss << "e" << std::dec << exponent;
         return ss.str();
+    }
+
+    inline Limb operator[](const size_t i) const {
+        if (i >= kMantissaBytes / sizeof(Limb)) {
+            constexpr int kRemainder = kMantissaBytes % sizeof(Limb);
+            constexpr int kOffset = kMantissaBytes - kMantissaBytes % sizeof(Limb);
+            if (kRemainder == 1) {
+                return Limb(mantissa[kOffset]);
+            } else if (kRemainder == 2) {
+                return Limb(*reinterpret_cast<uint16_t const *>(&mantissa[kOffset]));
+            } else if (kRemainder == 4) {
+                return Limb(*reinterpret_cast<uint32_t const *>(&mantissa[kOffset]));
+            }
+            static_assert(kRemainder == 1 || kRemainder == 2 || kRemainder == 4,
+                          "Mantissa non-limb aligned tail must have a size that is a power of two.");
+        }
+        return reinterpret_cast<mp_limb_t const *>(mantissa)[i];
     }
 
     inline bool operator==(PackedFloat const &rhs) const {
@@ -89,7 +101,7 @@ class PackedFloat {
         if (exponent != rhs.exponent) {
             return false;
         }
-        return std::memcmp(mantissa, rhs.mantissa, kMantissaBytes);
+        return std::memcmp(mantissa, rhs.mantissa, kMantissaBytes) == 0;
     }
 
     inline bool operator!=(PackedFloat const &rhs) const {
@@ -107,4 +119,23 @@ static_assert(sizeof(PackedFloat) == kBytes, "Numbers must be tightly packed.");
 inline std::ostream &operator<<(std::ostream &os, PackedFloat const &val) {
     os << val.ToString();
     return os;
+}
+
+inline void PackedFloat::ToGmp(mpf_t num) {
+    const auto bytes_to_copy = std::min(mpf_get_prec(num), mp_bitcnt_t(kMantissaBits)) / 8;
+    const int limbs_to_copy = (bytes_to_copy + sizeof(Limb) - 1) / sizeof(Limb);
+    num->_mp_exp = exponent;
+    // Consider all limbs to be active
+    num->_mp_size = 0;
+    for (int i = 0; i < limbs_to_copy; ++i) {
+        const auto limb = (*this)[i];
+        if (limb != 0) {
+            num->_mp_d[i] = limb;
+            num->_mp_size = i + 1;
+        }
+    }
+    num->_mp_exp = exponent + num->_mp_size - 1;
+    if (sign) {
+        num->_mp_size = -num->_mp_size;
+    }
 }

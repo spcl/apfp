@@ -24,16 +24,19 @@ bool RunTest(std::string const &kernel_path, int size_n, int size_k, int size_m)
     for (int n = 0; n < size_n; ++n) {
         for (int k = 0; k < size_k; ++k) {
             a_gmp.emplace_back(rng.GenerateGmp());
+            mpf_set_si(&a_gmp[n * size_k + k], 1);
         }
     }
     for (int k = 0; k < size_k; ++k) {
         for (int m = 0; m < size_m; ++m) {
             b_gmp.emplace_back(rng.GenerateGmp());
+            mpf_set_si(&b_gmp[k * size_m + m], 1);
         }
     }
     for (int n = 0; n < size_n; ++n) {
         for (int m = 0; m < size_m; ++m) {
             c_gmp.emplace_back(rng.GenerateGmp());
+            mpf_set_si(&c_gmp[n * size_m + m], 1);
         }
     }
     // Convert to PackedFloat format

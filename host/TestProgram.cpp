@@ -1,4 +1,5 @@
 #include <hlslib/xilinx/OpenCL.h>
+#include <hlslib/xilinx/Utility.h>
 
 #include <cstdlib>  // putenv
 #include <iostream>
@@ -15,9 +16,14 @@ void RunTest(std::string const &kernel_path, int size_n, int size_k, int size_m)
 #endif
     hlslib::ocl::Context context;
     auto program = context.MakeProgram(kernel_path);
-    auto a_device = context.MakeBuffer<DramLine, hlslib::ocl::Access::read>(kLinesPerNumber * size_n * size_k);
-    auto b_device = context.MakeBuffer<DramLine, hlslib::ocl::Access::read>(kLinesPerNumber * size_k * size_m);
-    auto c_device = context.MakeBuffer<DramLine, hlslib::ocl::Access::read>(kLinesPerNumber * size_n * size_m);
+    // Pad to the tile size
+    auto a_device = context.MakeBuffer<DramLine, hlslib::ocl::Access::read>(
+        kLinesPerNumber * (hlslib::CeilDivide(size_n, kTileSizeN) * kTileSizeN) * size_k);
+    auto b_device = context.MakeBuffer<DramLine, hlslib::ocl::Access::read>(
+        kLinesPerNumber * size_k * (hlslib::CeilDivide(size_m, kTileSizeM) * kTileSizeM));
+    auto c_device = context.MakeBuffer<DramLine, hlslib::ocl::Access::read>(
+        kLinesPerNumber * (hlslib::CeilDivide(size_n, kTileSizeN) * kTileSizeN) *
+        (hlslib::CeilDivide(size_m, kTileSizeM) * kTileSizeM));
     // In simulation mode, this will call the function "MatrixMultiplication" and run it in software.
     // Otherwise, the provided path to a kernel binary will be loaded and executed.
     auto kernel = program.MakeKernel(MatrixMultiplication, "MatrixMultiplication", a_device, b_device, c_device,

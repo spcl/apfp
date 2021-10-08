@@ -34,20 +34,23 @@ add_vitis_program(MatrixMultiplication ${APFP_PLATFORM})
 
 include_directories(${CMAKE_BINARY_DIR} include SYSTEM hlslib/include ${Vitis_INCLUDE_DIRS} )
 
+add_library(apfp host/Random.cpp host/MatrixMultiplicationReference.cpp)
+target_link_libraries(apfp ${GMP_LIBRARIES})
+
 add_library(simulation ${APFP_KERNEL_FILES})
 target_compile_options(simulation PRIVATE -Wno-unknown-pragmas -DAP_INT_MAX_W=${APFP_BITS})
 target_link_libraries(simulation ${CMAKE_THREAD_LIBS_INIT})
 
 add_executable(TestSimulation host/TestProgram.cpp)
-target_link_libraries(TestSimulation simulation ${Vitis_LIBRARIES} ${GMP_LIBRARIES}) 
+target_link_libraries(TestSimulation apfp simulation ${Vitis_LIBRARIES} ${GMP_LIBRARIES}) 
 target_compile_definitions(TestSimulation PRIVATE HLSLIB_SIMULATE_OPENCL)
 
 add_executable(TestHardware host/TestProgram.cpp)
-target_link_libraries(TestHardware simulation ${Vitis_LIBRARIES} ${GMP_LIBRARIES}) 
+target_link_libraries(TestHardware apfp simulation ${Vitis_LIBRARIES} ${GMP_LIBRARIES}) 
 
 enable_testing()
 add_test(TestSimulation TestSimulation 4 4 4)
 add_library(Catch host/Catch.cpp)
 add_executable(UnitTests host/UnitTests.cpp)
-target_link_libraries(UnitTests Catch ${GMP_LIBRARIES} simulation)
+target_link_libraries(UnitTests Catch ${GMP_LIBRARIES} apfp simulation)
 add_test(UnitTests UnitTests)

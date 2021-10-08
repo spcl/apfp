@@ -82,6 +82,20 @@ class PackedFloat {
         return ss.str();
     }
 
+    inline bool operator==(PackedFloat const &rhs) const {
+        if ((sign == 0) != (rhs.sign == 0)) {
+            return false;
+        }
+        if (exponent != rhs.exponent) {
+            return false;
+        }
+        return std::memcmp(mantissa, rhs.mantissa, kMantissaBytes);
+    }
+
+    inline bool operator!=(PackedFloat const &rhs) const {
+        return !(*this == rhs);
+    }
+
     // Fields are left public
     Mantissa mantissa;
     Exponent exponent;

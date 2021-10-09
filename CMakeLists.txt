@@ -36,6 +36,10 @@ add_library(simulation ${APFP_KERNEL_FILES})
 target_compile_options(simulation PRIVATE -Wno-unknown-pragmas -DAP_INT_MAX_W=${APFP_BITS})
 target_link_libraries(simulation ${CMAKE_THREAD_LIBS_INIT})
 
+add_library(Apfp interface/Apfp.cpp)
+target_link_libraries(Apfp ${Vitis_LIBRARIES} ${GMP_LIBRARIES}) 
+target_compile_definitions(Apfp PRIVATE HLSLIB_SIMULATE_OPENCL)
+
 add_executable(TestSimulation host/TestProgram.cpp)
 target_link_libraries(TestSimulation simulation ${Vitis_LIBRARIES} ${GMP_LIBRARIES}) 
 target_compile_definitions(TestSimulation PRIVATE HLSLIB_SIMULATE_OPENCL)

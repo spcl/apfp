@@ -3,8 +3,8 @@
 
 #include <optional>
 
-#include "PackedFloat.h"
 #include "MatrixMultiplication.h"
+#include "PackedFloat.h"
 
 class DeviceMatrix;
 
@@ -16,7 +16,7 @@ class Apfp {
     std::size_t lines_per_number_;
     const std::string kernel_path_ = "";
 
-public:
+   public:
     Apfp();
 
     /// Allocate a buffer on the device
@@ -24,7 +24,7 @@ public:
 
     /// Two argument matrix multiply allocating the output buffer
     DeviceMatrix MatrixMultiplication(const DeviceMatrix& a, const DeviceMatrix& b);
-    
+
     /// Three argument matrix multiply with supplied output buffer
     void MatrixMultiplication(const DeviceMatrix& a, const DeviceMatrix& b, DeviceMatrix* result);
 
@@ -48,7 +48,7 @@ class DeviceMatrix {
 
     DeviceMatrix() = default;
 
-    public:
+   public:
     std::size_t rows() const {
         return num_rows_;
     }

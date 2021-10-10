@@ -39,6 +39,6 @@ void Apfp::TransposeInPlace(DeviceMatrix*) {
     throw std::exception();
 }
 
-DeviceMatrix Apfp::Transpose(const DeviceMatrix&) {
+DeviceMatrix Apfp::Transpose(const DeviceMatrix& a) {
     throw std::exception();
 }

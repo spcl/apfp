@@ -38,45 +38,6 @@ class PackedFloat {
         std::memcpy(mantissa, _mantissa, kMantissaBytes);
     }
 
-#ifndef HLSLIB_SYNTHESIS  // Interoperability with GMP, but only on the host side
-    inline PackedFloat(mpf_t num) {
-        const int num_limbs = std::abs(num->_mp_size);
-        const auto bytes_to_copy = std::min(size_t(kMantissaBytes), sizeof(Limb) * num_limbs);
-        std::memcpy(mantissa, num->_mp_d, bytes_to_copy);
-        std::memset(mantissa + sizeof(Limb) * num_limbs, 0x0, kMantissaBytes - bytes_to_copy);
-        exponent = num->_mp_exp - num_limbs + 1;
-        sign = num->_mp_size < 0;  // 1 if negative, 0 otherwise
-    }
-
-    inline void ToGmp(mpf_t num);
-
-    inline PackedFloat &operator=(mpf_t num) {
-        *this = PackedFloat(num);
-        return *this;
-    }
-
-    inline __mpf_struct ToGmp() {
-        __mpf_struct num;
-        mpf_init2(&num, kBits);
-        ToGmp(&num);
-        return num;
-    }
-#endif  // End interoperability with GMP
-
-    inline std::string ToString() const {
-        std::stringstream ss;
-        ss << ((Sign() < 0) ? "-" : "+") << std::hex;
-        constexpr auto i_end = (kMantissaBytes + sizeof(Limb) + 1) / sizeof(Limb);
-        for (size_t i = 0; i < i_end; ++i) {
-            ss << std::setfill('0') << std::setw(2 * sizeof(Limb)) << (*this)[i];
-            if (i < i_end - 1) {
-                ss << "|";
-            }
-        }
-        ss << "e" << std::dec << exponent;
-        return ss.str();
-    }
-
     inline Limb operator[](const size_t i) const {
         if (i >= kMantissaBytes / sizeof(Limb)) {
             constexpr int kRemainder = kMantissaBytes % sizeof(Limb);
@@ -92,6 +53,55 @@ class PackedFloat {
                           "Mantissa non-limb aligned tail must have a size that is a power of two.");
         }
         return reinterpret_cast<mp_limb_t const *>(mantissa)[i];
+    }
+
+#ifndef HLSLIB_SYNTHESIS  // Interoperability with GMP, but only on the host side
+    inline PackedFloat(mpf_t num) {
+        const int num_limbs = std::abs(num->_mp_size);
+        const auto bytes_to_copy = std::min(size_t(kMantissaBytes), sizeof(Limb) * num_limbs);
+        std::memcpy(mantissa, num->_mp_d, bytes_to_copy);
+        std::memset(mantissa + sizeof(Limb) * num_limbs, 0x0, kMantissaBytes - bytes_to_copy);
+        exponent = num->_mp_exp - num_limbs + 1;
+        sign = num->_mp_size < 0;  // 1 if negative, 0 otherwise
+    }
+
+    inline PackedFloat &operator=(mpf_t num) {
+        *this = PackedFloat(num);
+        return *this;
+    }
+
+    inline void ToGmp(mpf_t num) {
+        const auto bytes_to_copy = std::min(mpf_get_prec(num), mp_bitcnt_t(kMantissaBits)) / 8;
+        const int limbs_to_copy = (bytes_to_copy + sizeof(Limb) - 1) / sizeof(Limb);
+        num->_mp_exp = exponent;
+        // Consider all limbs to be active
+        num->_mp_size = 0;
+        for (int i = 0; i < limbs_to_copy; ++i) {
+            const auto limb = (*this)[i];
+            if (limb != 0) {
+                num->_mp_d[i] = limb;
+                num->_mp_size = i + 1;
+            }
+        }
+        num->_mp_exp = exponent + num->_mp_size - 1;
+        if (sign) {
+            num->_mp_size = -num->_mp_size;
+        }
+    }
+#endif  // End interoperability with GMP
+
+    inline std::string ToString() const {
+        std::stringstream ss;
+        ss << ((Sign() < 0) ? "-" : "+") << std::hex;
+        constexpr auto i_end = (kMantissaBytes + sizeof(Limb) + 1) / sizeof(Limb);
+        for (size_t i = 0; i < i_end; ++i) {
+            ss << std::setfill('0') << std::setw(2 * sizeof(Limb)) << (*this)[i];
+            if (i < i_end - 1) {
+                ss << "|";
+            }
+        }
+        ss << "e" << std::dec << exponent;
+        return ss.str();
     }
 
     inline bool operator==(PackedFloat const &rhs) const {
@@ -119,23 +129,4 @@ static_assert(sizeof(PackedFloat) == kBytes, "Numbers must be tightly packed.");
 inline std::ostream &operator<<(std::ostream &os, PackedFloat const &val) {
     os << val.ToString();
     return os;
-}
-
-inline void PackedFloat::ToGmp(mpf_t num) {
-    const auto bytes_to_copy = std::min(mpf_get_prec(num), mp_bitcnt_t(kMantissaBits)) / 8;
-    const int limbs_to_copy = (bytes_to_copy + sizeof(Limb) - 1) / sizeof(Limb);
-    num->_mp_exp = exponent;
-    // Consider all limbs to be active
-    num->_mp_size = 0;
-    for (int i = 0; i < limbs_to_copy; ++i) {
-        const auto limb = (*this)[i];
-        if (limb != 0) {
-            num->_mp_d[i] = limb;
-            num->_mp_size = i + 1;
-        }
-    }
-    num->_mp_exp = exponent + num->_mp_size - 1;
-    if (sign) {
-        num->_mp_size = -num->_mp_size;
-    }
 }

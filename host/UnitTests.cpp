@@ -4,8 +4,8 @@
 #include <iostream>
 #include <limits>
 
+#include "ArithmeticOperations.h"
 #include "Karatsuba.h"
-#include "MultiplyAccumulate.h"
 #include "PackedFloat.h"
 
 TEST_CASE("PackedFloat to/from GMP Conversion") {

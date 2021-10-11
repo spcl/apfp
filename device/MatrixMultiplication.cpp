@@ -4,7 +4,7 @@
 #include <hlslib/xilinx/Stream.h>
 #include <hlslib/xilinx/Utility.h>  // hlslib::CeilDivide
 
-#include "MultiplyAccumulate.h"
+#include "ArithmeticOperations.h"
 
 void ReadA(DramLine const *const mem, hlslib::Stream<PackedFloat> &to_kernel, const int size_n, const int size_k,
            const int size_m) {

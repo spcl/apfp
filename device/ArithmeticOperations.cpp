@@ -1,4 +1,4 @@
-#include "MultiplyAccumulate.h"
+#include "ArithmeticOperations.h"
 
 #include <ap_int.h>
 #include <hlslib/xilinx/Utility.h>  // hlslib::CeilDivide, hlslib::ConstLog2

@@ -20,7 +20,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wpedantic")
 
 configure_file(include/Config.h.in Config.h)
 
-set(APFP_KERNEL_FILES device/MatrixMultiplication.cpp device/MultiplyAccumulate.cpp device/Karatsuba.cpp)
+set(APFP_KERNEL_FILES device/MatrixMultiplication.cpp device/ArithmeticOperations.cpp device/Karatsuba.cpp)
 
 # Setup FPGA kernel targets
 add_vitis_kernel(MatrixMultiplication FILES ${APFP_KERNEL_FILES}

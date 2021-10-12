@@ -7,30 +7,91 @@
 #include "ArithmeticOperations.h"
 #include "Karatsuba.h"
 #include "PackedFloat.h"
+#include "Random.h"
+
+constexpr auto kNumRandom = 128;
 
 TEST_CASE("PackedFloat to/from GMP Conversion") {
-    mpf_t gmp_num;
-    mpf_init2(gmp_num, 8 * sizeof(Mantissa));
-    REQUIRE(mpf_get_prec(gmp_num) >= 8 * sizeof(Mantissa));
-    mpf_set_si(gmp_num, -42);
-    REQUIRE(gmp_num->_mp_exp == 1);
-    REQUIRE(gmp_num->_mp_size == -1);
-    REQUIRE(gmp_num->_mp_d[0] == 42);
-    PackedFloat num(gmp_num);
-    REQUIRE(num.sign == 1);
-    REQUIRE(num.exponent == 1);
-    REQUIRE(num.mantissa[0] == 42);
-    for (int i = 1; i < kMantissaBytes; ++i) {
-        REQUIRE(num.mantissa[i] == 0);
+    // Simple example
+    {
+        mpf_t gmp_num;
+        mpf_init2(gmp_num, 8 * sizeof(Mantissa));
+        REQUIRE(mpf_get_prec(gmp_num) >= 8 * sizeof(Mantissa));
+        mpf_set_si(gmp_num, -42);
+        REQUIRE(gmp_num->_mp_exp == 1);
+        REQUIRE(gmp_num->_mp_size == -1);
+        REQUIRE(gmp_num->_mp_d[0] == 42);
+        PackedFloat num(gmp_num);
+        REQUIRE(num.sign == 1);
+        REQUIRE(num.exponent == 1);
+        REQUIRE(num.mantissa[0] == 42);
+        for (int i = 1; i < kMantissaBytes; ++i) {
+            REQUIRE(num.mantissa[i] == 0);
+        }
+        num.ToGmp(gmp_num);
+        REQUIRE(gmp_num->_mp_exp == 1);
+        REQUIRE(gmp_num->_mp_size == -1);
+        REQUIRE(gmp_num->_mp_d[0] == 42);
+        for (int i = 1; i < gmp_num->_mp_size; ++i) {
+            REQUIRE(gmp_num->_mp_d[i] == 0);
+        };
+        mpf_clear(gmp_num);
     }
-    num.ToGmp(gmp_num);
-    REQUIRE(gmp_num->_mp_exp == 1);
-    REQUIRE(gmp_num->_mp_size == -1);
-    REQUIRE(gmp_num->_mp_d[0] == 42);
-    for (int i = 1; i < gmp_num->_mp_size; ++i) {
-        REQUIRE(gmp_num->_mp_d[i] == 0);
-    };
-    mpf_clear(gmp_num);
+    // Run some random numbers
+    {
+        auto rng = RandomNumberGenerator();
+        mpf_t gmp_num_a, gmp_num_b;
+        PackedFloat num;
+        mpf_init2(gmp_num_a, 8 * sizeof(Mantissa));
+        mpf_init2(gmp_num_b, 8 * sizeof(Mantissa));
+        for (int i = 0; i < kNumRandom; ++i) {
+            rng.Generate(gmp_num_a);
+            const int gmp_bytes = sizeof(mp_limb_t) * std::abs(gmp_num_a->_mp_size);
+            const size_t offset = std::max(gmp_bytes - kMantissaBytes, 0);
+            num = gmp_num_a;
+            num.ToGmp(gmp_num_b);
+            REQUIRE(gmp_num_b->_mp_exp == gmp_num_a->_mp_exp);
+            REQUIRE(gmp_num_b->_mp_size == gmp_num_a->_mp_size);
+            REQUIRE(std::memcmp(gmp_num_a->_mp_d, reinterpret_cast<uint8_t const *>(gmp_num_b->_mp_d) + offset,
+                                std::min(gmp_bytes, kMantissaBytes)) == 0);
+            REQUIRE(PackedFloat(gmp_num_b) == num);
+        }
+    }
+    // Run some random numbers
+    {
+        auto rng = RandomNumberGenerator();
+        mpfr_t mpfr_num_a, mpfr_num_b;
+        PackedFloat num;
+        mpfr_init2(mpfr_num_a, 8 * sizeof(Mantissa));
+        mpfr_init2(mpfr_num_b, 8 * sizeof(Mantissa));
+        for (int i = 0; i < kNumRandom; ++i) {
+            rng.Generate(mpfr_num_a);
+            const int mpfr_bytes = std::abs(mpfr_num_a->_mpfr_prec) / 8;
+            const size_t offset = std::max(mpfr_bytes - kMantissaBytes, 0);
+            num = mpfr_num_a;
+            num.ToMpfr(mpfr_num_b);
+            REQUIRE(mpfr_num_b->_mpfr_exp == mpfr_num_a->_mpfr_exp);
+            REQUIRE(std::memcmp(reinterpret_cast<uint8_t const *>(mpfr_num_a->_mpfr_d) + offset, mpfr_num_b->_mpfr_d,
+                                std::min(mpfr_bytes, kMantissaBytes)) == 0);
+            REQUIRE(PackedFloat(mpfr_num_b) == num);
+        }
+    }
+}
+
+TEST_CASE("PackedFloat to/from MPFR Conversion") {
+    mpfr_t mpfr_num_a, mpfr_num_b;
+    mpfr_init2(mpfr_num_a, 8 * sizeof(Mantissa));
+    mpfr_init2(mpfr_num_b, 8 * sizeof(Mantissa));
+    REQUIRE(mpfr_get_prec(mpfr_num_a) >= mpfr_prec_t(8 * sizeof(Mantissa)));
+    mpfr_set_si(mpfr_num_a, -42, kRoundingMode);
+    PackedFloat num(mpfr_num_a);
+    REQUIRE(num.sign == 1);
+    num.ToMpfr(mpfr_num_b);
+    REQUIRE(mpfr_num_a->_mpfr_exp == mpfr_num_a->_mpfr_exp);
+    REQUIRE(mpfr_num_a->_mpfr_sign == mpfr_num_a->_mpfr_sign);
+    REQUIRE(std::memcmp(mpfr_num_a->_mpfr_d, mpfr_num_b->_mpfr_d, kMantissaBytes) == 0);
+    mpfr_clear(mpfr_num_a);
+    mpfr_clear(mpfr_num_b);
 }
 
 template <int bits>
@@ -63,7 +124,9 @@ TEST_CASE("Karatsuba") {
     REQUIRE(MultOverflow(a, b) == Karatsuba(a, b));
 }
 
-TEST_CASE("Multiply") {
+#ifdef APFP_GMP_SEMANTICS
+
+TEST_CASE("Multiply GMP") {
     mpf_t gmp_a, gmp_b, gmp_c;
     mpf_init2(gmp_a, kMantissaBits);
     mpf_init2(gmp_b, kMantissaBits);
@@ -154,3 +217,5 @@ TEST_CASE("MultiplyAccumulate") {
     mpf_clear(gmp_c);
     mpf_clear(gmp_tmp);
 }
+
+#endif

@@ -9,16 +9,32 @@ RandomNumberGenerator::~RandomNumberGenerator() {
 }
 
 PackedFloat RandomNumberGenerator::Generate() {
-    mpf_t gmp_num = {GenerateGmp()};
-    PackedFloat num(gmp_num);
-    mpf_clear(gmp_num);
+    mpfr_t mpfr_num = {GenerateMpfr()};
+    PackedFloat num(mpfr_num);
+    mpfr_clear(mpfr_num);
     return num;
 }
 
 __mpf_struct RandomNumberGenerator::GenerateGmp() {
-    std::unique_lock<std::mutex> lock(mutex_);
     mpf_t num;
     mpf_init2(num, kMantissaBits);
-    mpf_urandomb(num, state_, kMantissaBits);
+    Generate(num);
     return num[0];
+}
+
+__mpfr_struct RandomNumberGenerator::GenerateMpfr() {
+    mpfr_t num;
+    mpfr_init2(num, kBits);
+    Generate(num);
+    return num[0];
+}
+
+void RandomNumberGenerator::Generate(mpfr_t &num) {
+    std::unique_lock<std::mutex> lock(mutex_);
+    mpfr_urandom(num, state_, kRoundingMode);
+}
+
+void RandomNumberGenerator::Generate(mpf_t &num) {
+    std::unique_lock<std::mutex> lock(mutex_);
+    mpf_urandomb(num, state_, kMantissaBits);
 }

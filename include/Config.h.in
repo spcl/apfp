@@ -2,4 +2,8 @@
 
 constexpr int kBits = ${APFP_BITS};
 constexpr int kBytes = kBits / 8;
+constexpr int kMultBaseBits = ${APFP_MULT_BASE_BITS};
+constexpr int kTileSizeN = ${APFP_TILE_SIZE_N};
+constexpr int kTileSizeM = ${APFP_TILE_SIZE_M};
 constexpr auto kBuildDir = "${CMAKE_BINARY_DIR}";
+static_assert(kBits % 8 == 0, "Number of bits must be byte-aligned.");

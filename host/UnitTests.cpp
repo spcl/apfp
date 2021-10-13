@@ -102,28 +102,44 @@ ap_uint<2 * bits> MultOverflow(ap_uint<bits> const &a, ap_uint<bits> const &b) {
 }
 
 TEST_CASE("Karatsuba") {
-    ap_uint<kBits> a, b;
-    a = 1;
-    b = 1;
-    REQUIRE(MultOverflow(a, b) == Karatsuba(a, b));
-    a = 0;
-    b = 1;
-    REQUIRE(MultOverflow(a, b) == Karatsuba(a, b));
-    a = 0;
-    b = 0;
-    REQUIRE(MultOverflow(a, b) == Karatsuba(a, b));
-    a = -1;
-    b = 1;
-    REQUIRE(MultOverflow(a, b) == Karatsuba(a, b));
-    a = 12345;
-    b = 67890;
-    REQUIRE(MultOverflow(a, b) == Karatsuba(a, b));
-    a = 1234567890;
-    b = 6789012345;
-    REQUIRE(MultOverflow(a, b) == Karatsuba(a, b));
-    a = std::numeric_limits<uint64_t>::max();
-    b = std::numeric_limits<uint64_t>::max();
-    REQUIRE(MultOverflow(a, b) == Karatsuba(a, b));
+    {
+        ap_uint<kMantissaBits> a, b;
+        a = 1;
+        b = 1;
+        REQUIRE(MultOverflow(a, b) == Karatsuba(a, b));
+        a = 0;
+        b = 1;
+        REQUIRE(MultOverflow(a, b) == Karatsuba(a, b));
+        a = 0;
+        b = 0;
+        REQUIRE(MultOverflow(a, b) == Karatsuba(a, b));
+        a = -1;
+        b = 1;
+        REQUIRE(MultOverflow(a, b) == Karatsuba(a, b));
+        a = 12345;
+        b = 67890;
+        REQUIRE(MultOverflow(a, b) == Karatsuba(a, b));
+        a = 1234567890;
+        b = 6789012345;
+        REQUIRE(MultOverflow(a, b) == Karatsuba(a, b));
+        a = std::numeric_limits<uint64_t>::max();
+        b = std::numeric_limits<uint64_t>::max();
+        REQUIRE(MultOverflow(a, b) == Karatsuba(a, b));
+    }
+
+    {
+        auto rng = RandomNumberGenerator();
+        for (int i = 0; i < kNumRandom; ++i) {
+            const auto _a = rng.Generate();
+            const auto _b = rng.Generate();
+            ap_uint<kMantissaBits> a, b;
+            for (int j = 0; j < kMantissaBytes; ++j) {
+                a.range((j + 1) * 8 - 1, j * 8) = _a.mantissa[j];
+                b.range((j + 1) * 8 - 1, j * 8) = _b.mantissa[j];
+            }
+            REQUIRE(MultOverflow(a, b) == Karatsuba(a, b));
+        }
+    }
 }
 
 TEST_CASE("Add GMP") {

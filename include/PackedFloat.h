@@ -54,7 +54,7 @@ class PackedFloat {
     }
 
 #ifndef HLSLIB_SYNTHESIS  // Interoperability with GMP/MPFR, but only on the host side
-    inline PackedFloat(mpf_t num) {
+    inline PackedFloat(const mpf_t num) {
         // Copy the most significant bytes, padding zeros if necessary
         const auto num_limbs = std::min(size_t(std::abs(num->_mp_size)),
                                         (mpf_get_prec(num) + 8 * sizeof(mp_limb_t) - 1) / (8 * sizeof(mp_limb_t)));
@@ -67,7 +67,7 @@ class PackedFloat {
         sign = num->_mp_size < 0;  // 1 if negative, 0 otherwise
     }
 
-    inline PackedFloat(mpfr_t num) {
+    inline PackedFloat(const mpfr_t num) {
         // Copy the most significant bytes, padding zeros if necessary
         const auto mpfr_limbs = (mpfr_get_prec(num) + 8 * sizeof(mp_limb_t) - 1) / (8 * sizeof(mp_limb_t));
         const size_t mpfr_bytes = mpfr_limbs * sizeof(mp_limb_t);

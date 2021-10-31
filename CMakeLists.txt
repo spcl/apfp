@@ -74,3 +74,5 @@ add_library(Catch host/Catch.cpp)
 add_executable(UnitTests host/UnitTests.cpp)
 target_link_libraries(UnitTests Catch ${GMP_LIBRARIES} ${MPFR_LIBRARIES} apfp simulation)
 add_test(UnitTests UnitTests)
+
+install(TARGETS ApfpHostlib)

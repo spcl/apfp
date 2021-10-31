@@ -1,12 +1,14 @@
 #include "Apfp.h"
-#include <stdexcept>
+
 #include <MatrixMultiplication.h>
+
+#include <stdexcept>
 
 #include "Config.h"
 
 Apfp::Apfp() {
     program_.emplace(context_.MakeProgram(kernel_path_));
-    lines_per_number_ = kLinesPerNumber; 
+    lines_per_number_ = kLinesPerNumber;
 }
 
 DeviceMatrix Apfp::AllocateDeviceMatrix(std::size_t rows, std::size_t cols) {
@@ -26,13 +28,11 @@ DeviceMatrix Apfp::MatrixMultiplication(const DeviceMatrix& a, const DeviceMatri
 }
 
 void Apfp::MatrixMultiplication(const DeviceMatrix& a, const DeviceMatrix& b, DeviceMatrix* result) {
-    if(a.cols() != b.rows() || result->rows() != a.rows() || result->cols() != b.cols()) {
+    if (a.cols() != b.rows() || result->rows() != a.rows() || result->cols() != b.cols()) {
         throw std::logic_error("Matrix dimension mismatch");
     }
-    // auto kernel = program_->MakeKernel(MatrixMultiplication, "MatrixMultiplication", 
-    auto kernel = program_->MakeKernel("MatrixMultiplication", 
-        a.buffer_, b.buffer_, result->buffer_, result->buffer_,
-        a.rows(), b.rows(), result->cols());
+    auto kernel = program_->MakeKernel("MatrixMultiplication", a.buffer_, b.buffer_, result->buffer_, result->buffer_,
+                                       a.rows(), b.rows(), result->cols());
     kernel.ExecuteTask();
 }
 
@@ -45,24 +45,25 @@ DeviceMatrix Apfp::Transpose(const DeviceMatrix& a) {
 }
 
 void DeviceMatrix::TransferToDevice(const mpf_t* buffer_ptr, std::size_t buffer_size) {
-    if(rows()*cols() > buffer_size) {
+    if (rows() * cols() > buffer_size) {
         throw std::runtime_error("Source host buffer size smaller than destination device matrix size");
     }
 
     // TODO: This all assumes a bit width and will break once we need different runtime sizes
     std::vector<PackedFloat> host_buffer;
-    host_buffer.resize(cols()*rows());
+    host_buffer.resize(cols() * rows());
 
-    std::transform(buffer_ptr, buffer_ptr + host_buffer.size(), host_buffer.begin(), 
-        [](const mpf_t& a) { return PackedFloat(a); });
-    
-    buffer_.CopyFromHost(0, host_buffer.size() * kLinesPerNumber, reinterpret_cast<DramLine const *>(host_buffer.data()));
+    std::transform(buffer_ptr, buffer_ptr + host_buffer.size(), host_buffer.begin(),
+                   [](const mpf_t& a) { return PackedFloat(a); });
+
+    buffer_.CopyFromHost(0, host_buffer.size() * kLinesPerNumber,
+                         reinterpret_cast<DramLine const*>(host_buffer.data()));
 }
 
 void DeviceMatrix::TransferToHost(mpf_t* buffer_ptr, std::size_t buffer_size) {
-    if(rows()*cols() >= buffer_size) {
+    if (rows() * cols() >= buffer_size) {
         throw std::runtime_error("Destination host buffer size smaller than source device matrix size");
     }
 
-    buffer_.CopyToHost(0, kLinesPerNumber * rows()*cols(), reinterpret_cast<DramLine *>(buffer_ptr));
+    buffer_.CopyToHost(0, kLinesPerNumber * rows() * cols(), reinterpret_cast<DramLine*>(buffer_ptr));
 }

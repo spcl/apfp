@@ -1,6 +1,6 @@
 #pragma once
-#include <hlslib/xilinx/OpenCL.h>
 #include <gmp.h>
+#include <hlslib/xilinx/OpenCL.h>
 
 #include <optional>
 
@@ -64,4 +64,3 @@ class DeviceMatrix {
     /// TODO: Make this take output iterators
     void TransferToHost(mpf_t* buffer_ptr, std::size_t buffer_size);
 };
-

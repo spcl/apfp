@@ -54,7 +54,7 @@ add_library(simulation ${APFP_KERNEL_FILES})
 target_compile_options(simulation PRIVATE -Wno-unknown-pragmas -DAP_INT_MAX_W=${APFP_MAX_BITS})
 target_link_libraries(simulation ${CMAKE_THREAD_LIBS_INIT})
 
-add_library(ApfpHostlib interface/Apfp.cpp)
+add_library(ApfpHostlib SHARED interface/Apfp.cpp)
 target_link_libraries(ApfpHostlib ${Vitis_LIBRARIES} ${GMP_LIBRARIES}) 
 target_compile_definitions(ApfpHostlib PRIVATE HLSLIB_SIMULATE_OPENCL)
 

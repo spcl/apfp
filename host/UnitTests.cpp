@@ -142,6 +142,8 @@ TEST_CASE("Karatsuba") {
     }
 }
 
+#ifdef APFP_GMP_SEMANTICS
+
 TEST_CASE("Add GMP") {
     {
         mpf_t gmp_a, gmp_b, gmp_c;
@@ -184,23 +186,6 @@ TEST_CASE("Add GMP") {
         }
     }
 }
-
-TEST_CASE("Add MPFR") {
-    auto rng = RandomNumberGenerator();
-    mpfr_t mpfr_num_a, mpfr_num_b, mpfr_num_c;
-    PackedFloat num;
-    mpfr_init2(mpfr_num_a, 8 * sizeof(Mantissa));
-    mpfr_init2(mpfr_num_b, 8 * sizeof(Mantissa));
-    mpfr_init2(mpfr_num_c, 8 * sizeof(Mantissa));
-    for (int i = 0; i < kNumRandom; ++i) {
-        rng.Generate(mpfr_num_a);
-        rng.Generate(mpfr_num_b);
-        mpfr_add(mpfr_num_c, mpfr_num_a, mpfr_num_b, kRoundingMode);
-        REQUIRE(PackedFloat(mpfr_num_c) == Add(PackedFloat(mpfr_num_a), PackedFloat(mpfr_num_b)));
-    }
-}
-
-#ifdef APFP_GMP_SEMANTICS
 
 TEST_CASE("Multiply GMP") {
     {
@@ -305,19 +290,40 @@ TEST_CASE("MultiplyAccumulate GMP") {
 
 #else
 
+TEST_CASE("Add MPFR") {
+    auto rng = RandomNumberGenerator();
+    mpfr_t mpfr_num_a, mpfr_num_b, mpfr_num_c;
+    PackedFloat num;
+    mpfr_init2(mpfr_num_a, 8 * sizeof(Mantissa));
+    mpfr_init2(mpfr_num_b, 8 * sizeof(Mantissa));
+    mpfr_init2(mpfr_num_c, 8 * sizeof(Mantissa));
+    for (int i = 0; i < kNumRandom; ++i) {
+        rng.Generate(mpfr_num_a);
+        rng.Generate(mpfr_num_b);
+        mpfr_add(mpfr_num_c, mpfr_num_a, mpfr_num_b, kRoundingMode);
+        REQUIRE(PackedFloat(mpfr_num_c) == Add(PackedFloat(mpfr_num_a), PackedFloat(mpfr_num_b)));
+    }
+    mpfr_clear(mpfr_num_a);
+    mpfr_clear(mpfr_num_b);
+    mpfr_clear(mpfr_num_c);
+}
+
 TEST_CASE("Multiply MPFR") {
     auto rng = RandomNumberGenerator();
-    mpfr_t gmp_num_a, gmp_num_b, gmp_num_c;
+    mpfr_t mpfr_num_a, mpfr_num_b, mpfr_num_c;
     PackedFloat num;
-    mpfr_init2(gmp_num_a, 8 * sizeof(Mantissa));
-    mpfr_init2(gmp_num_b, 8 * sizeof(Mantissa));
-    mpfr_init2(gmp_num_c, 8 * sizeof(Mantissa));
+    mpfr_init2(mpfr_num_a, 8 * sizeof(Mantissa));
+    mpfr_init2(mpfr_num_b, 8 * sizeof(Mantissa));
+    mpfr_init2(mpfr_num_c, 8 * sizeof(Mantissa));
     for (int i = 0; i < kNumRandom; ++i) {
-        rng.Generate(gmp_num_a);
-        rng.Generate(gmp_num_b);
-        mpfr_mul(gmp_num_c, gmp_num_a, gmp_num_b, kRoundingMode);
-        REQUIRE(PackedFloat(gmp_num_c) == Multiply(PackedFloat(gmp_num_a), PackedFloat(gmp_num_b)));
+        rng.Generate(mpfr_num_a);
+        rng.Generate(mpfr_num_b);
+        mpfr_mul(mpfr_num_c, mpfr_num_a, mpfr_num_b, kRoundingMode);
+        REQUIRE(PackedFloat(mpfr_num_c) == Multiply(PackedFloat(mpfr_num_a), PackedFloat(mpfr_num_b)));
     }
+    mpfr_clear(mpfr_num_a);
+    mpfr_clear(mpfr_num_b);
+    mpfr_clear(mpfr_num_c);
 }
 
 TEST_CASE("MultiplyAccumulate MPFR") {
@@ -332,10 +338,14 @@ TEST_CASE("MultiplyAccumulate MPFR") {
         rng.Generate(mpfr_num_b);
         rng.Generate(mpfr_num_c);
         mpfr_mul(mpfr_num_tmp, mpfr_num_a, mpfr_num_b, kRoundingMode);
-        mpfr_add(mpfr_num_c, mpfr_num_c, mpfr_num_tmp, kRoundingMode);
-        REQUIRE(PackedFloat(mpfr_num_c) ==
+        mpfr_add(mpfr_num_tmp, mpfr_num_c, mpfr_num_tmp, kRoundingMode);
+        REQUIRE(PackedFloat(mpfr_num_tmp) ==
                 MultiplyAccumulate(PackedFloat(mpfr_num_a), PackedFloat(mpfr_num_b), PackedFloat(mpfr_num_c)));
     }
+    mpfr_clear(mpfr_num_a);
+    mpfr_clear(mpfr_num_b);
+    mpfr_clear(mpfr_num_c);
+    mpfr_clear(mpfr_num_tmp);
 }
 
 #endif

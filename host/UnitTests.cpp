@@ -145,147 +145,61 @@ TEST_CASE("Karatsuba") {
 #ifdef APFP_GMP_SEMANTICS
 
 TEST_CASE("Add GMP") {
-    {
-        mpf_t gmp_a, gmp_b, gmp_c;
-        mpf_init2(gmp_a, kMantissaBits);
-        mpf_init2(gmp_b, kMantissaBits);
-        mpf_init2(gmp_c, kMantissaBits);
-
-        auto add = [&gmp_a, &gmp_b, &gmp_c](int64_t a, int64_t b) {
-            mpf_set_si(gmp_a, a);
-            mpf_set_si(gmp_b, b);
-            mpf_add(gmp_c, gmp_a, gmp_b);
-        };
-
-        add(1, 0);
-        REQUIRE(Add(PackedFloat(gmp_a), PackedFloat(gmp_b)) == PackedFloat(gmp_c));
-        add(1, 1);
-        REQUIRE(Add(PackedFloat(gmp_a), PackedFloat(gmp_b)) == PackedFloat(gmp_c));
-        add(std::numeric_limits<int64_t>::max(), std::numeric_limits<int64_t>::max());
-        REQUIRE(Add(PackedFloat(gmp_a), PackedFloat(gmp_b)) == PackedFloat(gmp_c));
-        add(std::numeric_limits<int64_t>::max(), 1);
-        REQUIRE(Add(PackedFloat(gmp_a), PackedFloat(gmp_b)) == PackedFloat(gmp_c));
-
-        mpf_clear(gmp_a);
-        mpf_clear(gmp_b);
-        mpf_clear(gmp_c);
+    auto rng = RandomNumberGenerator();
+    mpf_t gmp_num_a, gmp_num_b, gmp_num_c;
+    PackedFloat num;
+    mpf_init2(gmp_num_a, 8 * sizeof(Mantissa));
+    mpf_init2(gmp_num_b, 8 * sizeof(Mantissa));
+    mpf_init2(gmp_num_c, 8 * sizeof(Mantissa));
+    for (int i = 0; i < kNumRandom; ++i) {
+        rng.Generate(gmp_num_a);
+        rng.Generate(gmp_num_b);
+        mpf_add(gmp_num_c, gmp_num_a, gmp_num_b);
+        REQUIRE(PackedFloat(gmp_num_c) == Add(PackedFloat(gmp_num_a), PackedFloat(gmp_num_b)));
     }
-
-    {
-        auto rng = RandomNumberGenerator();
-        mpf_t gmp_num_a, gmp_num_b, gmp_num_c;
-        PackedFloat num;
-        mpf_init2(gmp_num_a, 8 * sizeof(Mantissa));
-        mpf_init2(gmp_num_b, 8 * sizeof(Mantissa));
-        mpf_init2(gmp_num_c, 8 * sizeof(Mantissa));
-        for (int i = 0; i < kNumRandom; ++i) {
-            rng.Generate(gmp_num_a);
-            rng.Generate(gmp_num_b);
-            mpf_add(gmp_num_c, gmp_num_a, gmp_num_b);
-            REQUIRE(PackedFloat(gmp_num_c) == Add(PackedFloat(gmp_num_a), PackedFloat(gmp_num_b)));
-        }
-    }
+    mpf_clear(gmp_num_a);
+    mpf_clear(gmp_num_b);
+    mpf_clear(gmp_num_c);
 }
 
 TEST_CASE("Multiply GMP") {
-    {
-        mpf_t gmp_a, gmp_b, gmp_c;
-        mpf_init2(gmp_a, kMantissaBits);
-        mpf_init2(gmp_b, kMantissaBits);
-        mpf_init2(gmp_c, kMantissaBits);
-
-        auto multiply = [&gmp_a, &gmp_b, &gmp_c](int64_t a, int64_t b) {
-            mpf_set_si(gmp_a, a);
-            mpf_set_si(gmp_b, b);
-            mpf_mul(gmp_c, gmp_a, gmp_b);
-        };
-
-        multiply(1, 0);
-        REQUIRE(Multiply(PackedFloat(gmp_a), PackedFloat(gmp_b)) == PackedFloat(gmp_c));
-        multiply(1, 1);
-        REQUIRE(Multiply(PackedFloat(gmp_a), PackedFloat(gmp_b)) == PackedFloat(gmp_c));
-        multiply(std::numeric_limits<int64_t>::max(), 1);
-        REQUIRE(Multiply(PackedFloat(gmp_a), PackedFloat(gmp_b)) == PackedFloat(gmp_c));
-        multiply(std::numeric_limits<int64_t>::max(), std::numeric_limits<int64_t>::max());
-        REQUIRE(Multiply(PackedFloat(gmp_a), PackedFloat(gmp_b)) == PackedFloat(gmp_c));
-
-        mpf_clear(gmp_a);
-        mpf_clear(gmp_b);
-        mpf_clear(gmp_c);
+    auto rng = RandomNumberGenerator();
+    mpf_t gmp_num_a, gmp_num_b, gmp_num_c;
+    PackedFloat num;
+    mpf_init2(gmp_num_a, 8 * sizeof(Mantissa));
+    mpf_init2(gmp_num_b, 8 * sizeof(Mantissa));
+    mpf_init2(gmp_num_c, 8 * sizeof(Mantissa));
+    for (int i = 0; i < kNumRandom; ++i) {
+        rng.Generate(gmp_num_a);
+        rng.Generate(gmp_num_b);
+        mpf_mul(gmp_num_c, gmp_num_a, gmp_num_b);
+        REQUIRE(PackedFloat(gmp_num_c) == Multiply(PackedFloat(gmp_num_a), PackedFloat(gmp_num_b)));
     }
-    {
-        auto rng = RandomNumberGenerator();
-        mpf_t gmp_num_a, gmp_num_b, gmp_num_c;
-        PackedFloat num;
-        mpf_init2(gmp_num_a, 8 * sizeof(Mantissa));
-        mpf_init2(gmp_num_b, 8 * sizeof(Mantissa));
-        mpf_init2(gmp_num_c, 8 * sizeof(Mantissa));
-        for (int i = 0; i < kNumRandom; ++i) {
-            rng.Generate(gmp_num_a);
-            rng.Generate(gmp_num_b);
-            mpf_mul(gmp_num_c, gmp_num_a, gmp_num_b);
-            REQUIRE(PackedFloat(gmp_num_c) == Add(PackedFloat(gmp_num_a), PackedFloat(gmp_num_b)));
-        }
-    }
+    mpf_clear(gmp_num_a);
+    mpf_clear(gmp_num_b);
+    mpf_clear(gmp_num_c);
 }
 
 TEST_CASE("MultiplyAccumulate GMP") {
-    {
-        mpf_t gmp_a, gmp_b, gmp_c, gmp_tmp;
-        mpf_init2(gmp_a, kMantissaBits);
-        mpf_init2(gmp_b, kMantissaBits);
-        mpf_init2(gmp_c, kMantissaBits);
-        mpf_init2(gmp_tmp, kMantissaBits);
-
-        auto multiply_accumulate = [&gmp_a, &gmp_b, &gmp_c, &gmp_tmp](int64_t a, int64_t b, int64_t c) {
-            mpf_set_si(gmp_a, a);
-            mpf_set_si(gmp_b, b);
-            mpf_set_si(gmp_c, c);
-            mpf_mul(gmp_tmp, gmp_a, gmp_b);
-            mpf_add(gmp_tmp, gmp_tmp, gmp_c);
-        };
-
-        multiply_accumulate(1, 1, 0);
-        REQUIRE(MultiplyAccumulate(PackedFloat(gmp_a), PackedFloat(gmp_b), PackedFloat(gmp_c)) == PackedFloat(gmp_tmp));
-        multiply_accumulate(1, 2, 0);
-        REQUIRE(MultiplyAccumulate(PackedFloat(gmp_a), PackedFloat(gmp_b), PackedFloat(gmp_c)) == PackedFloat(gmp_tmp));
-        multiply_accumulate(1, 1, 1);
-        REQUIRE(MultiplyAccumulate(PackedFloat(gmp_a), PackedFloat(gmp_b), PackedFloat(gmp_c)) == PackedFloat(gmp_tmp));
-        multiply_accumulate(1, 2, 1);
-        REQUIRE(MultiplyAccumulate(PackedFloat(gmp_a), PackedFloat(gmp_b), PackedFloat(gmp_c)) == PackedFloat(gmp_tmp));
-        multiply_accumulate(std::numeric_limits<int64_t>::max(), 1, 0);
-        REQUIRE(MultiplyAccumulate(PackedFloat(gmp_a), PackedFloat(gmp_b), PackedFloat(gmp_c)) == PackedFloat(gmp_tmp));
-        multiply_accumulate(std::numeric_limits<int64_t>::max(), 1, std::numeric_limits<int64_t>::max());
-        REQUIRE(MultiplyAccumulate(PackedFloat(gmp_a), PackedFloat(gmp_b), PackedFloat(gmp_c)) == PackedFloat(gmp_tmp));
-
-        multiply_accumulate(std::numeric_limits<int64_t>::max(), std::numeric_limits<int64_t>::max(), 0);
-        REQUIRE(MultiplyAccumulate(PackedFloat(gmp_a), PackedFloat(gmp_b), PackedFloat(gmp_c)) == PackedFloat(gmp_tmp));
-        multiply_accumulate(std::numeric_limits<int64_t>::max(), std::numeric_limits<int64_t>::max(),
-                            std::numeric_limits<int64_t>::max());
-        REQUIRE(MultiplyAccumulate(PackedFloat(gmp_a), PackedFloat(gmp_b), PackedFloat(gmp_c)) == PackedFloat(gmp_tmp));
-
-        mpf_clear(gmp_a);
-        mpf_clear(gmp_b);
-        mpf_clear(gmp_c);
-        mpf_clear(gmp_tmp);
+    auto rng = RandomNumberGenerator();
+    mpf_t gmp_num_a, gmp_num_b, gmp_num_c, gmp_num_tmp;
+    mpf_init2(gmp_num_a, 8 * sizeof(Mantissa));
+    mpf_init2(gmp_num_b, 8 * sizeof(Mantissa));
+    mpf_init2(gmp_num_c, 8 * sizeof(Mantissa));
+    mpf_init2(gmp_num_tmp, 8 * sizeof(Mantissa));
+    for (int i = 0; i < kNumRandom; ++i) {
+        rng.Generate(gmp_num_a);
+        rng.Generate(gmp_num_b);
+        rng.Generate(gmp_num_c);
+        mpf_mul(gmp_num_tmp, gmp_num_a, gmp_num_b);
+        mpf_add(gmp_num_tmp, gmp_num_c, gmp_num_tmp);
+        REQUIRE(PackedFloat(gmp_num_tmp) ==
+                MultiplyAccumulate(PackedFloat(gmp_num_a), PackedFloat(gmp_num_b), PackedFloat(gmp_num_c)));
     }
-    {
-        auto rng = RandomNumberGenerator();
-        mpf_t gmp_num_a, gmp_num_b, gmp_num_c, gmp_num_tmp;
-        mpf_init2(gmp_num_a, 8 * sizeof(Mantissa));
-        mpf_init2(gmp_num_b, 8 * sizeof(Mantissa));
-        mpf_init2(gmp_num_c, 8 * sizeof(Mantissa));
-        mpf_init2(gmp_num_tmp, 8 * sizeof(Mantissa));
-        for (int i = 0; i < kNumRandom; ++i) {
-            rng.Generate(gmp_num_a);
-            rng.Generate(gmp_num_b);
-            rng.Generate(gmp_num_c);
-            mpf_mul(gmp_num_tmp, gmp_num_a, gmp_num_b);
-            mpf_add(gmp_num_c, gmp_num_c, gmp_num_tmp);
-            REQUIRE(PackedFloat(gmp_num_c) ==
-                    MultiplyAccumulate(PackedFloat(gmp_num_a), PackedFloat(gmp_num_b), PackedFloat(gmp_num_c)));
-        }
-    }
+    mpf_clear(gmp_num_a);
+    mpf_clear(gmp_num_b);
+    mpf_clear(gmp_num_c);
+    mpf_clear(gmp_num_tmp);
 }
 
 #else

@@ -122,6 +122,8 @@ void Compute(hlslib::Stream<PackedFloat> &a_in, hlslib::Stream<PackedFloat> &b_i
                         const bool in_bounds = (n0 * kTileSizeN + n1 < size_n) && (m0 * kTileSizeM + m1 < size_m);
                         // Meat of the computation
                         const auto res = in_bounds ? MultiplyAccumulate(a, b, c) : c;
+                        // Write back to buffer
+                        c_buffer[n1 * kTileSizeM + m1] = res;
                         // Write out on last slice
                         if (k == size_k - 1) {
                             c_out.Push(res);

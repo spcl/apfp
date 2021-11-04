@@ -9,7 +9,7 @@ set(APFP_BITS 1024 CACHE STRING "Number of bits to use for a floating point numb
 set(APFP_MULT_BASE_BITS 16 CACHE STRING "Number of bits to bottom out the multiplication at and use native multiplication.")
 set(APFP_TILE_SIZE_N 32 CACHE STRING "Tile size in the N-dimension when running matrix-matrix multiplication.")
 set(APFP_TILE_SIZE_M 32 CACHE STRING "Tile size in the M-dimension when running matrix-matrix multiplication.")
-set(APFP_SEMANTICS "GMP" CACHE STRING "Which semantics to use for floating point operations [GMP/MPFR].")
+set(APFP_SEMANTICS "MPFR" CACHE STRING "Which semantics to use for floating point operations [GMP/MPFR].")
 set_property(CACHE APFP_SEMANTICS PROPERTY STRINGS GMP MPFR)
 
 # Validation and derived numbers

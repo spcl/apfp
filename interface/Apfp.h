@@ -7,6 +7,8 @@
 #include "MatrixMultiplication.h"
 #include "PackedFloat.h"
 
+#include <functional>
+
 class DeviceMatrix;
 
 /// Object oriented interface for Apfp

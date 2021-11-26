@@ -1,8 +1,8 @@
 #pragma once
 #include <gmp.h> 
 #include <functional>
+#include "ApfpInterfaceType.h"
 
-using ApfpInterfaceType = mpf_t;
 // 
 using IndexFunction = std::function<ApfpInterfaceType*(unsigned long)>;
 using ConstIndexFunction = std::function<const ApfpInterfaceType*(unsigned long)>;

@@ -45,7 +45,7 @@ DeviceMatrix Apfp::Transpose(const DeviceMatrix& a) {
     throw std::exception();
 }
 
-void DeviceMatrix::TransferToDevice(const mpf_t* buffer_ptr, std::size_t buffer_size) {
+void DeviceMatrix::TransferToDevice(const ApfpInterfaceType* buffer_ptr, std::size_t buffer_size) {
     if (rows() * cols() > buffer_size) {
         throw std::runtime_error("Source host buffer size smaller than destination device matrix size");
     }
@@ -55,13 +55,13 @@ void DeviceMatrix::TransferToDevice(const mpf_t* buffer_ptr, std::size_t buffer_
     host_buffer.resize(cols() * rows());
 
     std::transform(buffer_ptr, buffer_ptr + host_buffer.size(), host_buffer.begin(),
-                   [](const mpf_t& a) { return PackedFloat(a); });
+                   [](const ApfpInterfaceType& a) { return PackedFloat(a); });
 
     buffer_.CopyFromHost(0, host_buffer.size() * kLinesPerNumber,
                          reinterpret_cast<DramLine const*>(host_buffer.data()));
 }
 
-void DeviceMatrix::TransferToHost(mpf_t* buffer_ptr, std::size_t buffer_size) {
+void DeviceMatrix::TransferToHost(ApfpInterfaceType* buffer_ptr, std::size_t buffer_size) {
     if (rows() * cols() >= buffer_size) {
         throw std::runtime_error("Destination host buffer size smaller than source device matrix size");
     }

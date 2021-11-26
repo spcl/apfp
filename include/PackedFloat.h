@@ -85,7 +85,7 @@ class PackedFloat {
         return *this;
     }
 
-    inline void ToGmp(mpf_t num) {
+    inline void ToGmp(mpf_t num) const {
         const size_t gmp_limbs = (mpf_get_prec(num) + 8 * sizeof(mp_limb_t) - 1) / (8 * sizeof(mp_limb_t));
         constexpr size_t kNumLimbs = kMantissaBytes / sizeof(Limb);
         // GMP does not allow graceful rounding, so we cannot handle having insufficient bits in the target GMP number
@@ -104,7 +104,7 @@ class PackedFloat {
         }
     }
 
-    inline void ToMpfr(mpfr_t num) {
+    inline void ToMpfr(mpfr_t num) const {
         // Copy the most significant bytes, padding zeros if necessary
         const auto mpfr_limbs = (mpfr_get_prec(num) + 8 * sizeof(mp_limb_t) - 1) / (8 * sizeof(mp_limb_t));
         const size_t mpfr_bytes = mpfr_limbs * sizeof(mp_limb_t);

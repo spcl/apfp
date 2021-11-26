@@ -45,7 +45,8 @@ DeviceMatrix Apfp::Transpose(const DeviceMatrix& a) {
     throw std::exception();
 }
 
-void DeviceMatrix::TransferToDevice(const ApfpInterfaceType* buffer_ptr, std::size_t buffer_size) {
+template<typename ptr_function_type>
+void DeviceMatrix::TransferToDeviceImpl(ptr_function_type buffer_ptr_func, std::size_t buffer_size) {
     if (rows() * cols() > buffer_size) {
         throw std::runtime_error("Source host buffer size smaller than destination device matrix size");
     }
@@ -54,17 +55,51 @@ void DeviceMatrix::TransferToDevice(const ApfpInterfaceType* buffer_ptr, std::si
     std::vector<PackedFloat> host_buffer;
     host_buffer.resize(cols() * rows());
 
-    std::transform(buffer_ptr, buffer_ptr + host_buffer.size(), host_buffer.begin(),
-                   [](const ApfpInterfaceType& a) { return PackedFloat(a); });
+    for(std::size_t i = 0; i < host_buffer.size(); ++i) {
+        host_buffer[i] = PackedFloat(*buffer_ptr_func(i));
+    }
 
     buffer_.CopyFromHost(0, host_buffer.size() * kLinesPerNumber,
                          reinterpret_cast<DramLine const*>(host_buffer.data()));
 }
 
-void DeviceMatrix::TransferToHost(ApfpInterfaceType* buffer_ptr, std::size_t buffer_size) {
-    if (rows() * cols() >= buffer_size) {
+void DeviceMatrix::TransferToDevice(const ApfpInterfaceType* buffer_ptr, std::size_t buffer_size) {
+    TransferToDeviceImpl([&](std::size_t i) { return &buffer_ptr[i]; }, buffer_size);
+}
+
+void DeviceMatrix::TransferToDevice(const ApfpInterfaceWrapper* buffer_ptr, std::size_t buffer_size) {
+    TransferToDeviceImpl([&](std::size_t i) { return buffer_ptr[i].get(); }, buffer_size);
+}
+
+void PackedFloatToInterfaceType(const PackedFloat& packed, mpfr_t dest) {
+    packed.ToMpfr(dest);
+}
+
+void PackedFloatToInterfaceType(const PackedFloat& packed, mpf_t dest) {
+    packed.ToGmp(dest);
+}
+
+template<typename ptr_function_type>
+void DeviceMatrix::TransferToHostImpl(ptr_function_type buffer_ptr_func, std::size_t buffer_size) {
+        if (rows() * cols() >= buffer_size) {
         throw std::runtime_error("Destination host buffer size smaller than source device matrix size");
     }
 
-    buffer_.CopyToHost(0, kLinesPerNumber * rows() * cols(), reinterpret_cast<DramLine*>(buffer_ptr));
+    std::vector<PackedFloat> host_buffer;
+    host_buffer.resize(cols() * rows());
+
+    buffer_.CopyToHost(0, kLinesPerNumber * rows() * cols(), reinterpret_cast<DramLine*>(host_buffer.data()));
+
+    ApfpInterfaceWrapper scratch;
+    for(std::size_t i = 0; i < host_buffer.size(); ++i) {
+        PackedFloatToInterfaceType(host_buffer[i], *buffer_ptr_func(i));
+    }
+}
+
+void DeviceMatrix::TransferToHost(ApfpInterfaceType* buffer_ptr, std::size_t buffer_size) {
+    TransferToHostImpl([&](std::size_t i) { return &(buffer_ptr[i]); }, buffer_size);
+}
+
+void DeviceMatrix::TransferToHost(ApfpInterfaceWrapper* buffer_ptr, std::size_t buffer_size) {
+    TransferToHostImpl([&](std::size_t i) { return buffer_ptr[i].get(); }, buffer_size);
 }

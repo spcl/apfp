@@ -22,6 +22,8 @@ public:
 
     ApfpInterfaceWrapper();
 
+    ApfpInterfaceWrapper(unsigned long precision);
+
     ApfpInterfaceWrapper(ApfpInterfaceWrapper&) = delete;
 
     ApfpInterfaceWrapper& operator=(const ApfpInterfaceWrapper&) = delete;

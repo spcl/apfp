@@ -27,3 +27,7 @@ ApfpInterfaceWrapper::~ApfpInterfaceWrapper() {
 ApfpInterfaceWrapper::ApfpInterfaceWrapper() {
     InitApfpInterfaceType(data_);
 }
+
+ApfpInterfaceWrapper::ApfpInterfaceWrapper(unsigned long precision) {
+    Init2ApfpInterfaceType(data_, precision);
+}

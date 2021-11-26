@@ -7,7 +7,7 @@
 using IndexFunction = std::function<ApfpInterfaceType*(unsigned long)>;
 using ConstIndexFunction = std::function<const ApfpInterfaceType*(unsigned long)>;
 
-int ApfpInit(unsigned int precision);
+int ApfpInit(unsigned long precision);
 
 int ApfpFinalize();
 

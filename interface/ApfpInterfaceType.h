@@ -5,7 +5,7 @@ using ApfpInterfaceType = mpf_t;
 
 void InitApfpInterfaceType(ApfpInterfaceType value);
 
-void Init2ApfpInterfaceType(ApfpInterfaceType value, unsigned int precision);
+void Init2ApfpInterfaceType(ApfpInterfaceType value, unsigned long precision);
 
 void ClearApfpInterfaceType(ApfpInterfaceType value);
 

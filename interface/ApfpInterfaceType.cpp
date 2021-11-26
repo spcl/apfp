@@ -4,7 +4,7 @@ void InitApfpInterfaceType(ApfpInterfaceType value) {
     mpf_init(value);
 }
 
-void Init2ApfpInterfaceType(ApfpInterfaceType value, unsigned int precision) {
+void Init2ApfpInterfaceType(ApfpInterfaceType value, unsigned long precision) {
     mpf_init2(value, precision);
 }
 

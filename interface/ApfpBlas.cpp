@@ -16,7 +16,7 @@ enum ApfpBlasTrans : char {
     transpose = 'T',
 };
 
-int ApfpInit(unsigned int precision) {
+int ApfpInit(unsigned long precision) {
     try {
         if (precision > kBits) {
             // Requested bit width too large

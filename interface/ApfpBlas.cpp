@@ -99,13 +99,13 @@ int ApfpSyrkTemplate(char uplo, char trans, unsigned long N, unsigned long K, pt
             return ApfpBlasError::unimplemented;
         }
 
-        // We're not going to support weird edge cases
-        if (N == 0) { return -3; }
-        if (K == 0) { return -4; }
-        
         if (LDA < N) { return -6; }
         if (LDC < N) { return -8; }
 
+        // Empty matrix no-op
+        if (N == 0) { return ApfpBlasError::success; }
+        if (K == 0) { return ApfpBlasError::success; }
+        
         // ==== setup ====
 
         std::vector<ApfpInterfaceType> host_a, host_c;

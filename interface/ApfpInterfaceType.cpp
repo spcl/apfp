@@ -31,3 +31,15 @@ ApfpInterfaceWrapper::ApfpInterfaceWrapper() {
 ApfpInterfaceWrapper::ApfpInterfaceWrapper(unsigned long precision) {
     Init2ApfpInterfaceType(data_, precision);
 }
+
+
+ApfpInterfaceWrapper::ApfpInterfaceWrapper(ApfpInterfaceWrapper&& other) {
+    SwapApfpInterfaceType(data_, other.data_);
+    ClearApfpInterfaceType(other.data_);
+}
+
+ApfpInterfaceWrapper& ApfpInterfaceWrapper::operator=(ApfpInterfaceWrapper&& other) {
+    SwapApfpInterfaceType(data_, other.data_);
+    ClearApfpInterfaceType(other.data_);
+    return *this;
+}

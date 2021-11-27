@@ -24,9 +24,13 @@ public:
 
     ApfpInterfaceWrapper(unsigned long precision);
 
+    ApfpInterfaceWrapper(ApfpInterfaceWrapper&&);
+
     ApfpInterfaceWrapper(ApfpInterfaceWrapper&) = delete;
 
     ApfpInterfaceWrapper& operator=(const ApfpInterfaceWrapper&) = delete;
+
+    ApfpInterfaceWrapper& operator=(ApfpInterfaceWrapper&&);
     
     ApfpInterfaceType* get() { return &data_; }
 

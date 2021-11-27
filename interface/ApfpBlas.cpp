@@ -37,57 +37,57 @@ int ApfpFinalize() {
 
 /// Copy the upper or lower triangle from an NxN matrix A to a full size buffer
 template<typename ptr_function_type>
-void CopyFromMatrixUplo(ApfpBlasUplo uplo, unsigned long N, ptr_function_type A, unsigned long LDA, ApfpInterfaceType* buffer) {
+void CopyFromMatrixUplo(ApfpBlasUplo uplo, unsigned long N, ptr_function_type A, unsigned long LDA, ApfpInterfaceWrapper* buffer) {
     auto dest_lda = N;
     // Col major layout
     for (unsigned long j = 0; j < N; ++j) {
         for (unsigned long i = 0; i <= j; ++i) {
             auto source = uplo == ApfpBlasUplo::lower ? A(i + j * LDA) : A(j + i * LDA);
-            buffer[i + j * dest_lda] = *source;
-            buffer[j + i * dest_lda] = *source;
+            SetApfpInterfaceType(*buffer[i + j * dest_lda].get(), *source);
+            SetApfpInterfaceType(*buffer[j + i * dest_lda].get(), *source);
         }
     }
 }
 
 /// Copy from a full size buffer to the upper or lower triangle of an NxN matrix A
 template<typename ptr_function_type>
-void CopyToMatrixUplo(ApfpBlasUplo uplo, unsigned long N, ptr_function_type A, unsigned long LDA, ApfpInterfaceType* buffer) {
+void CopyToMatrixUplo(ApfpBlasUplo uplo, unsigned long N, ptr_function_type A, unsigned long LDA, ApfpInterfaceWrapper* buffer) {
     auto source_lda = N;
     // Col major layout
     for (unsigned long j = 0; j < N; ++j) {
         for (unsigned long i = 0; i <= j; ++i) {
             auto dest = uplo == ApfpBlasUplo::lower ? A(i + j * LDA) : A(j + i * LDA);
-            *dest = buffer[i + j * source_lda];
+            SetApfpInterfaceType(*dest, *buffer[i + j * source_lda].get());
         }
     }
 }
 
 /// Copy from an NxK matrix A to a full size buffer
 template<typename ptr_function_type>
-void CopyFromMatrix(unsigned long N, unsigned long K, ptr_function_type A, unsigned long LDA, ApfpInterfaceType* buffer) {
+void CopyFromMatrix(unsigned long N, unsigned long K, ptr_function_type A, unsigned long LDA, ApfpInterfaceWrapper* buffer) {
     auto dest_lda = N;
     // Col major layout
     for (unsigned long j = 0; j < N; ++j) {
         for (unsigned long i = 0; i < K; ++i) {
-            buffer[i + j * dest_lda] = *A(i + j * LDA);
+            SetApfpInterfaceType(*buffer[i + j * dest_lda].get(), *A(i + j * LDA));
         }
     }
 }
 
 /// Copy to an NxK matrix A from a full size buffer
 template<typename ptr_function_type>
-void CopyToMatrix(unsigned long N, unsigned long K, ptr_function_type A, unsigned long LDA, ApfpInterfaceType* buffer) {
+void CopyToMatrix(unsigned long N, unsigned long K, ptr_function_type A, unsigned long LDA, ApfpInterfaceWrapper* buffer) {
     auto source_lda = N;
     // Col major layout
     for (unsigned long j = 0; j < N; ++j) {
         for (unsigned long i = 0; i < K; ++i) {
-            *A(i + j * LDA) = buffer[i + j * source_lda];
+            SetApfpInterfaceType(*A(i + j * LDA), *buffer[i + j * source_lda].get());
         }
     }
 }
 
 template<typename ptr_function_type_a, typename ptr_function_type_c>
-int ApfpSyrkTemplate(char uplo, char trans, unsigned long N, unsigned long K, ptr_function_type_a A, unsigned long LDA, ptr_function_type_c C, unsigned long LDC) {
+int ApfpSyrkImpl(char uplo, char trans, unsigned long N, unsigned long K, ptr_function_type_a A, unsigned long LDA, ptr_function_type_c C, unsigned long LDC) {
     try {
         // ==== library input validation stuff ====f
         if (std::toupper(uplo) != 'U' && std::toupper(uplo) != 'L') { return -1; }
@@ -108,7 +108,7 @@ int ApfpSyrkTemplate(char uplo, char trans, unsigned long N, unsigned long K, pt
         
         // ==== setup ====
 
-        std::vector<ApfpInterfaceType> host_a, host_c;
+        std::vector<ApfpInterfaceWrapper> host_a, host_c;
         host_a.resize(N*K);
         CopyFromMatrix(N, K, A, LDA, host_a.data());
         auto device_a = apfp->AllocateDeviceMatrix(N, K);
@@ -120,13 +120,15 @@ int ApfpSyrkTemplate(char uplo, char trans, unsigned long N, unsigned long K, pt
         device_c.TransferToDevice(host_c.data(), host_c.size());
 
         // ==== compute and teardown ====
-        // apfp.MatrixMultiply()
+        // apfp.SymmetricRankKUpdate(host_a, host_a, *host_c);
 
         device_c.TransferToHost(host_c.data(), host_c.size());
         CopyToMatrixUplo(uplo_validated, N, C, LDC, host_c.data());
     } catch (...) {
         return ApfpBlasError::unknown;
     }
+
+    return ApfpBlasError::unimplemented;
 
     return ApfpBlasError::success;
 }
@@ -135,10 +137,10 @@ int ApfpSyrkTemplate(char uplo, char trans, unsigned long N, unsigned long K, pt
 int ApfpSyrk(char uplo, char trans, unsigned long N, unsigned long K, const ApfpInterfaceType* A, unsigned long LDA, ApfpInterfaceType* C, unsigned long LDC) {
     auto a_ptr_function = [&](unsigned long i) -> const ApfpInterfaceType* { return &(A[i]); };
     auto c_ptr_function = [&](unsigned long i) -> ApfpInterfaceType* { return &(C[i]); };
-    return ApfpSyrkTemplate(uplo, trans, N, K, a_ptr_function, LDA, c_ptr_function, LDC);
+    return ApfpSyrkImpl(uplo, trans, N, K, a_ptr_function, LDA, c_ptr_function, LDC);
 }
 
 int ApfpSyrk(char uplo, char trans, unsigned long N, unsigned long K, ConstIndexFunction A, unsigned long LDA, IndexFunction C, unsigned long LDC) {
-    return ApfpSyrkTemplate(uplo, trans, N, K, A, LDA, C, LDC);
+    return ApfpSyrkImpl(uplo, trans, N, K, A, LDA, C, LDC);
 }
 

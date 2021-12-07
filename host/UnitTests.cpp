@@ -9,7 +9,7 @@
 #include "PackedFloat.h"
 #include "Random.h"
 
-constexpr auto kNumRandom = 128;
+constexpr auto kNumRandom = 512;
 
 TEST_CASE("PackedFloat to/from GMP Conversion") {
     // Simple example
@@ -216,6 +216,15 @@ TEST_CASE("Add MPFR") {
         rng.Generate(mpfr_num_b);
         mpfr_add(mpfr_num_c, mpfr_num_a, mpfr_num_b, kRoundingMode);
         REQUIRE(PackedFloat(mpfr_num_c) == Add(PackedFloat(mpfr_num_a), PackedFloat(mpfr_num_b)));
+    }
+    // Accumulate
+    mpfr_set_si(mpfr_num_c, 0, kRoundingMode);
+    num = PackedFloat(mpfr_num_c);
+    for (int i = 0; i < kNumRandom; ++i) {
+        rng.Generate(mpfr_num_a);
+        mpfr_add(mpfr_num_c, mpfr_num_a, mpfr_num_c, kRoundingMode);
+        num = Add(num, PackedFloat(mpfr_num_a));
+        REQUIRE(PackedFloat(mpfr_num_c) == num);
     }
     mpfr_clear(mpfr_num_a);
     mpfr_clear(mpfr_num_b);

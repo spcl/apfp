@@ -35,9 +35,12 @@ auto _Karatsuba(ap_uint<bits> const &a, ap_uint<bits> const &b) ->
     ap_uint<bits + 2> z1 = ap_uint<bits + 2>(a0a1b0b1_signed) + z0 + z2;
 
     // Align everything and combine
-    ap_uint<(2 * bits)> z0z2 = z0 + (ap_uint<(2 * bits)>(z2) << bits);
-    ap_uint<(2 * bits)> z1_aligned = ap_uint<(2 * bits)>(z1) << (bits / 2);
-    ap_uint<(2 * bits)> z = z1_aligned + z0z2;
+    ap_uint<(2 * bits)> z0z2 = z0 | (ap_uint<(2 * bits)>(z2) << bits);
+    ap_uint<(bits + 2 + bits / 2)> z1_aligned = ap_uint<(bits + 2 + bits / 2)>(z1) << (bits / 2);
+    ap_uint<(2 * bits)> z;
+    // Workaround to avoid HLS padding an extra bit for the add. This is necessary to support 2048 bit multiplication,
+    // which required adding two 4096 numbers, because 4096 bits is the maximum width support by the ap_uint type.
+    z.V = z1_aligned.V + z0z2.V;
 
     return z;
 }

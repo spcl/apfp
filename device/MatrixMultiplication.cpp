@@ -90,7 +90,6 @@ void WriteC(hlslib::Stream<PackedFloat> &from_kernel, DramLine *const mem, const
 
 void Compute(hlslib::Stream<PackedFloat> &a_in, hlslib::Stream<PackedFloat> &b_in, hlslib::Stream<PackedFloat> &c_in,
              hlslib::Stream<PackedFloat> &c_out, int const size_n, int const size_k, int const size_m) {
-    PackedFloat a, b, c;
     PackedFloat a_buffer;  // Just to make A symmetric to B and C
     PackedFloat b_buffer[kTileSizeM];
     PackedFloat c_buffer[kTileSizeN * kTileSizeM];
@@ -101,6 +100,7 @@ void Compute(hlslib::Stream<PackedFloat> &a_in, hlslib::Stream<PackedFloat> &b_i
                     for (int m1 = 0; m1 < kTileSizeM; ++m1) {
 #pragma HLS PIPELINE II = 1
 #pragma HLS LOOP_FLATTEN
+                        PackedFloat a, b, c;
                         if (m1 == 0) {
                             a = a_in.Pop();
                             a_buffer = a;
@@ -136,7 +136,7 @@ void Compute(hlslib::Stream<PackedFloat> &a_in, hlslib::Stream<PackedFloat> &b_i
 }
 
 void MatrixMultiplication(DramLine const *const a, DramLine const *const b, DramLine const *const c_read,
-                          DramLine *const c_write, const int size_n, const int size_m, int const size_k) {
+                          DramLine *const c_write, const int size_n, const int size_k, int const size_m) {
 #pragma HLS INTERFACE m_axi offset = slave port = a bundle = a
 #pragma HLS INTERFACE m_axi offset = slave port = b bundle = b
 // Even though they actually point to the same memory location, we use two separate interfaces for reading and writing

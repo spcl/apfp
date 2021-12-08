@@ -244,6 +244,19 @@ TEST_CASE("Multiply MPFR") {
         mpfr_mul(mpfr_num_c, mpfr_num_a, mpfr_num_b, kRoundingMode);
         REQUIRE(PackedFloat(mpfr_num_c) == Multiply(PackedFloat(mpfr_num_a), PackedFloat(mpfr_num_b)));
     }
+    mpfr_set_si(mpfr_num_c, 0, kRoundingMode);
+    num = PackedFloat(mpfr_num_c);
+    for (int i = 0; i < kNumRandom; ++i) {
+        rng.Generate(mpfr_num_a);
+        // Don't handle overflows
+        if (std::abs(num.exponent) >= std::sqrt(std::numeric_limits<mpfr_exp_t>::max())) {
+            rng.Generate(mpfr_num_c);
+            num = PackedFloat(mpfr_num_c);
+        }
+        mpfr_mul(mpfr_num_c, mpfr_num_a, mpfr_num_c, kRoundingMode);
+        num = Multiply(num, PackedFloat(mpfr_num_a));
+        REQUIRE(PackedFloat(mpfr_num_c) == num);
+    }
     mpfr_clear(mpfr_num_a);
     mpfr_clear(mpfr_num_b);
     mpfr_clear(mpfr_num_c);

@@ -49,12 +49,15 @@ bool RunTest(std::string const &kernel_path, int size_n, int size_k, int size_m)
     }
     // Allocate device memory, padding each buffer to the tile size
     auto a_device = context.MakeBuffer<DramLine, hlslib::ocl::Access::read>(
+        hlslib::ocl::StorageType::DDR, 1,
         kLinesPerNumber * (hlslib::CeilDivide(size_n, kTileSizeN) * kTileSizeN) * size_k);
     auto b_device = context.MakeBuffer<DramLine, hlslib::ocl::Access::read>(
+        hlslib::ocl::StorageType::DDR, 1,
         kLinesPerNumber * size_k * (hlslib::CeilDivide(size_m, kTileSizeM) * kTileSizeM));
     auto c_device = context.MakeBuffer<DramLine, hlslib::ocl::Access::readWrite>(
+        hlslib::ocl::StorageType::DDR, 1,
         kLinesPerNumber * (hlslib::CeilDivide(size_n, kTileSizeN) * kTileSizeN) *
-        (hlslib::CeilDivide(size_m, kTileSizeM) * kTileSizeM));
+            (hlslib::CeilDivide(size_m, kTileSizeM) * kTileSizeM));
     // Copy data to the accelerator cast to 512-bit DRAM lines
     a_device.CopyFromHost(0, kLinesPerNumber * size_n * size_k, reinterpret_cast<DramLine const *>(&a_host[0]));
     b_device.CopyFromHost(0, kLinesPerNumber * size_k * size_m, reinterpret_cast<DramLine const *>(&b_host[0]));

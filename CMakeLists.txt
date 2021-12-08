@@ -41,9 +41,15 @@ add_vitis_kernel(MatrixMultiplication FILES ${APFP_KERNEL_FILES}
                  HLS_FLAGS "-DAP_INT_MAX_W=${APFP_MAX_BITS} -DAPFP_${APFP_SEMANTICS}_SEMANTICS"
                  HLS_CONFIG "config_compile -pipeline_style frp\nconfig_dataflow -fifo_depth 16"
                  DEPENDS ${CMAKE_BINARY_DIR}/Config.h
+                         include/ArithmeticOperations.h
+                         include/Karatsuba.h
                          include/MatrixMultiplication.h
-                         include/Karatsuba.h)
-add_vitis_program(MatrixMultiplication ${APFP_PLATFORM})
+                         include/PackedFloat.h)
+add_vitis_program(MatrixMultiplication ${APFP_PLATFORM}
+                  PORT_MAPPING m_axi_a:DDR[1]
+                               m_axi_b:DDR[1]
+                               m_axi_c_read:DDR[1]
+                               m_axi_c_write:DDR[1])
 
 # Internal library 
 add_library(apfp host/Random.cpp host/MatrixMultiplicationReference.cpp)

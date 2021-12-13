@@ -31,7 +31,7 @@ void Apfp::MatrixMultiplication(const DeviceMatrix& a, const DeviceMatrix& b, De
     if (a.cols() != b.rows() || result->rows() != a.rows() || result->cols() != b.cols()) {
         throw std::logic_error("Matrix dimension mismatch");
     }
-    auto kernel = program_->MakeKernel(::MatrixMultiplication, "MatrixMultiplication", a.buffer_, b.buffer_, result->buffer_, result->buffer_,
+    auto kernel = program_->MakeKernel("MatrixMultiplication", a.buffer_, b.buffer_, result->buffer_, result->buffer_,
                                        static_cast<int>(a.rows()), static_cast<int>(b.rows()), static_cast<int>(result->cols()));
     kernel.ExecuteTask();
 }

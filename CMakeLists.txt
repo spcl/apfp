@@ -44,12 +44,12 @@ add_vitis_kernel(MatrixMultiplication FILES ${APFP_KERNEL_FILES}
                          include/ArithmeticOperations.h
                          include/Karatsuba.h
                          include/MatrixMultiplication.h
-                         include/PackedFloat.h)
-add_vitis_program(MatrixMultiplication ${APFP_PLATFORM}
-                  PORT_MAPPING m_axi_a:DDR[1]
-                               m_axi_b:DDR[1]
-                               m_axi_c_read:DDR[1]
-                               m_axi_c_write:DDR[1])
+                         include/PackedFloat.h
+                PORT_MAPPING m_axi_a:DDR[1]
+                             m_axi_b:DDR[1]
+                             m_axi_c_read:DDR[1]
+                             m_axi_c_write:DDR[1])
+add_vitis_program(MatrixMultiplication ${APFP_PLATFORM})
 
 # Internal library 
 add_library(apfp host/Random.cpp host/MatrixMultiplicationReference.cpp)

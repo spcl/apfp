@@ -66,14 +66,24 @@ bool RunTest(std::string const &kernel_path, int size_n, int size_k, int size_m)
     // Otherwise, the provided path to a kernel binary will be loaded and executed.
     auto kernel = program.MakeKernel(MatrixMultiplication, "MatrixMultiplication", a_device, b_device, c_device,
                                      c_device, size_n, size_k, size_m);
-    kernel.ExecuteTask();
+    std::cout << "Executing kernel...\n";
+    const auto elapsed = kernel.ExecuteTask();
+    std::cout << "Ran in " << elapsed.first << " seconds.\n";
+    const unsigned long ideal_cycles =
+        hlslib::CeilDivide(size_n, kTileSizeN) * hlslib::CeilDivide(size_m, kTileSizeM) * kTileSizeN * kTileSizeM;
+    std::cout << "The ideal number of cycles to completion is " << ideal_cycles << ".\n";
     // Copy back result
     c_device.CopyToHost(0, kLinesPerNumber * size_n * size_m, reinterpret_cast<DramLine *>(&c_host[0]));
     // Run reference implementation. Because of GMP's "clever" way of wrapping their struct in an array of size 1,
     // allocating and passing arrays of GMP numbers is a mess
+    std::cout << "Running reference implementation...\n";
+    const auto start = std::chrono::high_resolution_clock::now();
     MatrixMultiplicationReference(reinterpret_cast<mpfr_t const *>(&a_mpfr[0]),
                                   reinterpret_cast<mpfr_t const *>(&b_mpfr[0]), reinterpret_cast<mpfr_t *>(&c_mpfr[0]),
                                   size_n, size_k, size_m);
+    const auto end = std::chrono::high_resolution_clock::now();
+    const double elapsed_reference = 1e-9 * std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
+    std::cout << "Ran in " << elapsed_reference << " seconds.\n";
     // Verify results
     for (int n = 0; n < size_n; ++n) {
         for (int m = 0; m < size_m; ++m) {

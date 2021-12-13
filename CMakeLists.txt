@@ -9,7 +9,7 @@ set(APFP_BITS 1024 CACHE STRING "Number of bits to use for a floating point numb
 set(APFP_MULT_BASE_BITS 16 CACHE STRING "Number of bits to bottom out the multiplication at and use native multiplication.")
 set(APFP_TILE_SIZE_N 32 CACHE STRING "Tile size in the N-dimension when running matrix-matrix multiplication.")
 set(APFP_TILE_SIZE_M 32 CACHE STRING "Tile size in the M-dimension when running matrix-matrix multiplication.")
-set(APFP_SEMANTICS "GMP" CACHE STRING "Which semantics to use for floating point operations [GMP/MPFR].")
+set(APFP_SEMANTICS "MPFR" CACHE STRING "Which semantics to use for floating point operations [GMP/MPFR].")
 set_property(CACHE APFP_SEMANTICS PROPERTY STRINGS GMP MPFR)
 
 # Validation and derived numbers
@@ -41,8 +41,14 @@ add_vitis_kernel(MatrixMultiplication FILES ${APFP_KERNEL_FILES}
                  HLS_FLAGS "-DAP_INT_MAX_W=${APFP_MAX_BITS} -DAPFP_${APFP_SEMANTICS}_SEMANTICS"
                  HLS_CONFIG "config_compile -pipeline_style frp\nconfig_dataflow -fifo_depth 16"
                  DEPENDS ${CMAKE_BINARY_DIR}/Config.h
+                         include/ArithmeticOperations.h
+                         include/Karatsuba.h
                          include/MatrixMultiplication.h
-                         include/Karatsuba.h)
+                         include/PackedFloat.h
+                PORT_MAPPING m_axi_a:DDR[1]
+                             m_axi_b:DDR[1]
+                             m_axi_c_read:DDR[1]
+                             m_axi_c_write:DDR[1])
 add_vitis_program(MatrixMultiplication ${APFP_PLATFORM})
 
 # Internal library 

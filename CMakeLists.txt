@@ -60,6 +60,10 @@ add_library(simulation ${APFP_KERNEL_FILES})
 target_compile_options(simulation PRIVATE -Wno-unknown-pragmas -DAP_INT_MAX_W=${APFP_MAX_BITS})
 target_link_libraries(simulation ${CMAKE_THREAD_LIBS_INIT})
 
+add_library(ApfpHostlib SHARED interface/Apfp.cpp)
+target_link_libraries(ApfpHostlib ${Vitis_LIBRARIES} ${GMP_LIBRARIES}) 
+target_compile_definitions(ApfpHostlib PRIVATE HLSLIB_SIMULATE_OPENCL)
+
 # Executable used to run in simulation mode, calling the kernel as a C++ function directly
 add_executable(TestSimulation host/TestProgram.cpp)
 target_link_libraries(TestSimulation apfp simulation ${Vitis_LIBRARIES} ${GMP_LIBRARIES} ${MPFR_LIBRARIES}) 
@@ -76,3 +80,5 @@ add_library(Catch host/Catch.cpp)
 add_executable(UnitTests host/UnitTests.cpp)
 target_link_libraries(UnitTests Catch ${GMP_LIBRARIES} ${MPFR_LIBRARIES} apfp simulation)
 add_test(UnitTests UnitTests)
+
+install(TARGETS ApfpHostlib)

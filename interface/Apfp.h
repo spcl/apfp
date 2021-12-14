@@ -33,6 +33,9 @@ class Apfp {
     /// Three argument matrix multiply with supplied output buffer
     void MatrixMultiplication(const DeviceMatrix& a, const DeviceMatrix& b, DeviceMatrix* result);
 
+    /// Three argument matrix addition with supplied output buffer
+    void MatrixAddition(const DeviceMatrix& a, const DeviceMatrix& b, DeviceMatrix* result);
+
     // Transpose a matrix in place
     void TransposeInPlace(DeviceMatrix* a);
 

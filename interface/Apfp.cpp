@@ -36,11 +36,15 @@ void Apfp::MatrixMultiplication(const DeviceMatrix& a, const DeviceMatrix& b, De
     kernel.ExecuteTask();
 }
 
+void Apfp::MatrixAddition(const DeviceMatrix&, const DeviceMatrix&, DeviceMatrix*) {
+    throw std::exception();
+}
+
 void Apfp::TransposeInPlace(DeviceMatrix*) {
     throw std::exception();
 }
 
-DeviceMatrix Apfp::Transpose(const DeviceMatrix& a) {
+DeviceMatrix Apfp::Transpose(const DeviceMatrix&) {
     throw std::exception();
 }
 

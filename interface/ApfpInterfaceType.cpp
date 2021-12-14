@@ -1,22 +1,22 @@
 #include "ApfpInterfaceType.h"
 
-void InitApfpInterfaceType(ApfpInterfaceType value) {
+void InitApfpInterfaceType(ApfpInterfaceTypePtr value) {
     mpf_init(value);
 }
 
-void Init2ApfpInterfaceType(ApfpInterfaceType value, unsigned long precision) {
+void Init2ApfpInterfaceType(ApfpInterfaceTypePtr value, unsigned long precision) {
     mpf_init2(value, precision);
 }
 
-void ClearApfpInterfaceType(ApfpInterfaceType value) {
+void ClearApfpInterfaceType(ApfpInterfaceTypePtr value) {
     mpf_clear(value);
 }
 
-void SwapApfpInterfaceType(ApfpInterfaceType a, ApfpInterfaceType b) {
+void SwapApfpInterfaceType(ApfpInterfaceTypePtr a, ApfpInterfaceTypePtr b) {
     mpf_swap(a, b);
 }
 
-void SetApfpInterfaceType(ApfpInterfaceType dest, const ApfpInterfaceType source) {
+void SetApfpInterfaceType(ApfpInterfaceTypePtr dest, ApfpInterfaceTypeConstPtr source) {
     mpf_set(dest, source);
 }
 

@@ -2,16 +2,18 @@
 #include <gmp.h>
 
 using ApfpInterfaceType = mpf_t;
+using ApfpInterfaceTypePtr = mpf_ptr;
+using ApfpInterfaceTypeConstPtr = mpf_srcptr;
 
-void InitApfpInterfaceType(ApfpInterfaceType value);
+void InitApfpInterfaceType(ApfpInterfaceTypePtr value);
 
-void Init2ApfpInterfaceType(ApfpInterfaceType value, unsigned long precision);
+void Init2ApfpInterfaceType(ApfpInterfaceTypePtr value, unsigned long precision);
 
-void ClearApfpInterfaceType(ApfpInterfaceType value);
+void ClearApfpInterfaceType(ApfpInterfaceTypePtr value);
 
-void SwapApfpInterfaceType(ApfpInterfaceType a, ApfpInterfaceType b);
+void SwapApfpInterfaceType(ApfpInterfaceTypePtr a, ApfpInterfaceTypePtr b);
 
-void SetApfpInterfaceType(ApfpInterfaceType dest, const ApfpInterfaceType source);
+void SetApfpInterfaceType(ApfpInterfaceTypePtr dest, ApfpInterfaceTypeConstPtr source);
 
 /// Smart pointer-like wrapper class for GMP/MPFR types
 class ApfpInterfaceWrapper {
@@ -32,7 +34,8 @@ public:
 
     ApfpInterfaceWrapper& operator=(ApfpInterfaceWrapper&&);
     
-    ApfpInterfaceType* get() { return &data_; }
+    // This decays to the pointer type
+    ApfpInterfaceTypePtr get() { return data_; }
 
-    const ApfpInterfaceType* get() const { return &data_; }
+    ApfpInterfaceTypeConstPtr get() const { return data_; }
 };

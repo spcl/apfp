@@ -59,26 +59,26 @@ void DeviceMatrix::TransferToDeviceImpl(ptr_function_type buffer_ptr_func, std::
     host_buffer.resize(cols() * rows());
 
     for(std::size_t i = 0; i < host_buffer.size(); ++i) {
-        host_buffer[i] = PackedFloat(*buffer_ptr_func(i));
+        host_buffer[i] = PackedFloat(buffer_ptr_func(i));
     }
 
     buffer_.CopyFromHost(0, host_buffer.size() * kLinesPerNumber,
                          reinterpret_cast<DramLine const*>(host_buffer.data()));
 }
 
-void DeviceMatrix::TransferToDevice(const ApfpInterfaceType* buffer_ptr, std::size_t buffer_size) {
-    TransferToDeviceImpl([&](std::size_t i) { return &buffer_ptr[i]; }, buffer_size);
+void DeviceMatrix::TransferToDevice(ApfpInterfaceTypeConstPtr buffer_ptr, std::size_t buffer_size) {
+    TransferToDeviceImpl([&](std::size_t i) { return buffer_ptr + i; }, buffer_size);
 }
 
 void DeviceMatrix::TransferToDevice(const ApfpInterfaceWrapper* buffer_ptr, std::size_t buffer_size) {
     TransferToDeviceImpl([&](std::size_t i) { return buffer_ptr[i].get(); }, buffer_size);
 }
 
-void PackedFloatToInterfaceType(const PackedFloat& packed, mpfr_t dest) {
+void PackedFloatToInterfaceType(const PackedFloat& packed, mpfr_ptr dest) {
     packed.ToMpfr(dest);
 }
 
-void PackedFloatToInterfaceType(const PackedFloat& packed, mpf_t dest) {
+void PackedFloatToInterfaceType(const PackedFloat& packed, mpf_ptr dest) {
     packed.ToGmp(dest);
 }
 
@@ -95,14 +95,14 @@ void DeviceMatrix::TransferToHostImpl(ptr_function_type buffer_ptr_func, std::si
 
     ApfpInterfaceWrapper scratch;
     for(std::size_t i = 0; i < host_buffer.size(); ++i) {
-        PackedFloatToInterfaceType(host_buffer[i], *buffer_ptr_func(i));
+        PackedFloatToInterfaceType(host_buffer[i], buffer_ptr_func(i));
     }
 }
 
-void DeviceMatrix::TransferToHost(ApfpInterfaceType* buffer_ptr, std::size_t buffer_size) {
-    TransferToHostImpl([&](std::size_t i) { return &(buffer_ptr[i]); }, buffer_size);
+void DeviceMatrix::TransferToHost(ApfpInterfaceTypePtr buffer_ptr, std::size_t buffer_size) {
+    TransferToHostImpl([&](std::size_t i) -> ApfpInterfaceTypePtr { return buffer_ptr + i; }, buffer_size);
 }
 
 void DeviceMatrix::TransferToHost(ApfpInterfaceWrapper* buffer_ptr, std::size_t buffer_size) {
-    TransferToHostImpl([&](std::size_t i) { return buffer_ptr[i].get(); }, buffer_size);
+    TransferToHostImpl([&](std::size_t i) -> ApfpInterfaceTypePtr { return buffer_ptr[i].get(); }, buffer_size);
 }

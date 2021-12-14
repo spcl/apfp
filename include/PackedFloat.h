@@ -54,7 +54,7 @@ class PackedFloat {
     }
 
 #ifndef HLSLIB_SYNTHESIS  // Interoperability with GMP/MPFR, but only on the host side
-    inline PackedFloat(const mpf_t num) {
+    inline PackedFloat(mpf_srcptr num) {
         // Copy the most significant bytes, padding zeros if necessary
         const auto num_limbs = std::min(size_t(std::abs(num->_mp_size)),
                                         (mpf_get_prec(num) + 8 * sizeof(mp_limb_t) - 1) / (8 * sizeof(mp_limb_t)));
@@ -80,12 +80,12 @@ class PackedFloat {
         sign = num->_mpfr_sign < 0;  // 1 if negative, 0 otherwise
     }
 
-    inline PackedFloat &operator=(const mpf_t num) {
+    inline PackedFloat &operator=(mpf_srcptr num) {
         *this = PackedFloat(num);
         return *this;
     }
 
-    inline void ToGmp(mpf_t num) const {
+    inline void ToGmp(mpf_ptr num) {
         const size_t gmp_limbs = (mpf_get_prec(num) + 8 * sizeof(mp_limb_t) - 1) / (8 * sizeof(mp_limb_t));
         constexpr size_t kNumLimbs = kMantissaBytes / sizeof(Limb);
         // GMP does not allow graceful rounding, so we cannot handle having insufficient bits in the target GMP number

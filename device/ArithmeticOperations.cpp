@@ -7,17 +7,19 @@
 
 template <int bits>
 inline bool IsLastBitSet(ap_uint<bits> const &num) {
+#pragma HLS INLINE
     return num(bits - 1, bits - 1) == 1;
 }
 
 PackedFloat Multiply(PackedFloat const &a, PackedFloat const &b) {
+#pragma HLS INLINE
     // Pad mantissas to avoid passing awkward sizes to Karatsuba
     const ap_uint<kBits> a_mantissa_padded(*reinterpret_cast<ap_uint<kMantissaBits> const *>(a.mantissa));
     const ap_uint<kBits> b_mantissa_padded(*reinterpret_cast<ap_uint<kMantissaBits> const *>(b.mantissa));
 #ifdef APFP_GMP_SEMANTICS  // Use GMP semantics
     constexpr auto kLimbBits = 8 * sizeof(mp_limb_t);
     // Meat of the computation. Only keep the top bits of the computation and throw away the rest
-    ap_uint<(2 * kMantissaBits)> _m_mantissa = Karatsuba(a_mantissa_padded, b_mantissa_padded);
+    const ap_uint<(2 * kMantissaBits)> _m_mantissa = Karatsuba(a_mantissa_padded, b_mantissa_padded);
     const bool limb_zero = _m_mantissa.range(kMantissaBits + kLimbBits - 1, kMantissaBits) == 0;
     ap_uint<kMantissaBits + kLimbBits> m_mantissa = _m_mantissa;  // Truncate
     const Exponent m_exponent = a.exponent + b.exponent - limb_zero;
@@ -75,5 +77,6 @@ PackedFloat Add(PackedFloat const &a, PackedFloat const &b) {
 }
 
 PackedFloat MultiplyAccumulate(PackedFloat const &a, PackedFloat const &b, PackedFloat const &c) {
+#pragma HLS INLINE
     return Add(c, Multiply(a, b));
 }

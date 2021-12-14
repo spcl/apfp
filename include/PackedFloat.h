@@ -80,7 +80,7 @@ class PackedFloat {
         sign = num->_mpfr_sign < 0;  // 1 if negative, 0 otherwise
     }
 
-    inline PackedFloat &operator=(mpf_t num) {
+    inline PackedFloat &operator=(const mpf_t num) {
         *this = PackedFloat(num);
         return *this;
     }

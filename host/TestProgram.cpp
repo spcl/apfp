@@ -17,8 +17,11 @@ bool RunTestSimulation(int size_n, int size_k, int size_m) {
 bool RunTest(std::string const &kernel_path, int size_n, int size_k, int size_m) {
 #endif
     hlslib::ocl::Context context;
+    std::cout << "Configuring the device..." << std::flush;
     auto program = context.MakeProgram(kernel_path);
+    std::cout << " Done.\n";
     // Initialize some random data
+    std::cout << "Initializing input data..." << std::flush;
     std::vector<__mpfr_struct> a_mpfr, b_mpfr, c_mpfr;
     RandomNumberGenerator rng;
     for (int n = 0; n < size_n; ++n) {
@@ -47,7 +50,9 @@ bool RunTest(std::string const &kernel_path, int size_n, int size_k, int size_m)
     for (auto &x : c_mpfr) {
         c_host.emplace_back(&x);
     }
+    std::cout << " Done.\n";
     // Allocate device memory, padding each buffer to the tile size
+    std::cout << "Copying data to the device..." << std::flush;
     auto a_device = context.MakeBuffer<DramLine, hlslib::ocl::Access::read>(
         hlslib::ocl::StorageType::DDR, 1,
         kLinesPerNumber * (hlslib::CeilDivide(size_n, kTileSizeN) * kTileSizeN) * size_k);
@@ -62,18 +67,23 @@ bool RunTest(std::string const &kernel_path, int size_n, int size_k, int size_m)
     a_device.CopyFromHost(0, kLinesPerNumber * size_n * size_k, reinterpret_cast<DramLine const *>(&a_host[0]));
     b_device.CopyFromHost(0, kLinesPerNumber * size_k * size_m, reinterpret_cast<DramLine const *>(&b_host[0]));
     c_device.CopyFromHost(0, kLinesPerNumber * size_n * size_m, reinterpret_cast<DramLine const *>(&c_host[0]));
+    std::cout << " Done.\n";
     // In simulation mode, this will call the function "MatrixMultiplication" and run it in software.
     // Otherwise, the provided path to a kernel binary will be loaded and executed.
     auto kernel = program.MakeKernel(MatrixMultiplication, "MatrixMultiplication", a_device, b_device, c_device,
                                      c_device, size_n, size_k, size_m);
-    std::cout << "Executing kernel...\n";
-    const auto elapsed = kernel.ExecuteTask();
-    std::cout << "Ran in " << elapsed.first << " seconds.\n";
     const unsigned long expected_cycles = hlslib::CeilDivide(size_n, kTileSizeN) *
                                           hlslib::CeilDivide(size_m, kTileSizeM) * kTileSizeN * kTileSizeM * size_k;
     const float expected_runtime = expected_cycles / 0.3e9;
     std::cout << "The expected number of cycles to completion is " << expected_cycles << ", which is "
               << expected_runtime << " seconds at 300 MHz.\n";
+    const auto communication_volume = hlslib::CeilDivide(size_n, kTileSizeN) * hlslib::CeilDivide(size_m, kTileSizeM) *
+                                      ((kTileSizeN + kTileSizeM) * size_k + 2 * kTileSizeN * kTileSizeM);
+    std::cout << "This communicates " << 1e-6 * kBytes * communication_volume << " MB, requiring a bandwidth of "
+              << 1e-9 * kBytes * communication_volume / expected_runtime << " GB/s.\n";
+    std::cout << "Executing kernel...\n";
+    const auto elapsed = kernel.ExecuteTask();
+    std::cout << "Ran in " << elapsed.first << " seconds.\n";
     // Copy back result
     c_device.CopyToHost(0, kLinesPerNumber * size_n * size_m, reinterpret_cast<DramLine *>(&c_host[0]));
     // Run reference implementation. Because of GMP's "clever" way of wrapping their struct in an array of size 1,

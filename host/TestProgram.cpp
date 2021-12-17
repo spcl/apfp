@@ -69,9 +69,11 @@ bool RunTest(std::string const &kernel_path, int size_n, int size_k, int size_m)
     std::cout << "Executing kernel...\n";
     const auto elapsed = kernel.ExecuteTask();
     std::cout << "Ran in " << elapsed.first << " seconds.\n";
-    const unsigned long ideal_cycles =
-        hlslib::CeilDivide(size_n, kTileSizeN) * hlslib::CeilDivide(size_m, kTileSizeM) * kTileSizeN * kTileSizeM;
-    std::cout << "The ideal number of cycles to completion is " << ideal_cycles << ".\n";
+    const unsigned long expected_cycles = hlslib::CeilDivide(size_n, kTileSizeN) *
+                                          hlslib::CeilDivide(size_m, kTileSizeM) * kTileSizeN * kTileSizeM * size_k;
+    const float expected_runtime = expected_cycles / 0.3e9;
+    std::cout << "The expected number of cycles to completion is " << expected_cycles << ", which is "
+              << expected_runtime << " seconds at 300 MHz.\n";
     // Copy back result
     c_device.CopyToHost(0, kLinesPerNumber * size_n * size_m, reinterpret_cast<DramLine *>(&c_host[0]));
     // Run reference implementation. Because of GMP's "clever" way of wrapping their struct in an array of size 1,

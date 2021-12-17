@@ -107,6 +107,7 @@ bool RunTest(std::string const &kernel_path, int size_n, int size_k, int size_m)
             }
         }
     }
+    std::cout << "Results successfully verified against MPFR.\n";
 
     // Clean up
     for (int n = 0; n < size_n; ++n) {

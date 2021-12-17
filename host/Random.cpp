@@ -24,7 +24,7 @@ __mpf_struct RandomNumberGenerator::GenerateGmp() {
 
 __mpfr_struct RandomNumberGenerator::GenerateMpfr() {
     mpfr_t num;
-    mpfr_init2(num, kBits);
+    mpfr_init2(num, kMantissaBits);
     Generate(num);
     return num[0];
 }

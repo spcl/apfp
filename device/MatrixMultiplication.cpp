@@ -13,7 +13,9 @@ void ReadAInner(DramLine const *const mem, hlslib::Stream<PackedFloat> &a_to_fee
                 const int k) {
 #pragma HLS INLINE
     DramLine num[kLinesPerNumber];
+ReadA_N:
     for (int n1 = 0; n1 < kTileSizeN; ++n1) {
+    ReadA_Flits:
         for (int i = 0; i < kLinesPerNumber; ++i) {
 #pragma HLS PIPELINE II = 1
 #pragma HLS LOOP_FLATTEN
@@ -29,6 +31,7 @@ template <>
 void ReadAInner<1>(DramLine const *const mem, hlslib::Stream<PackedFloat> &a_to_feeder, const int size_k, const int n0,
                    const int k) {
 #pragma HLS INLINE
+ReadA_N:
     for (int n1 = 0; n1 < kTileSizeN; ++n1) {
 #pragma HLS PIPELINE II = 1
 #pragma HLS LOOP_FLATTEN
@@ -41,8 +44,11 @@ void ReadA(DramLine const *const mem, hlslib::Stream<PackedFloat> &a_to_feeder, 
            const int size_m) {
     const auto tiles_n = hlslib::CeilDivide(size_n, kTileSizeN);
     const auto tiles_m = hlslib::CeilDivide(size_m, kTileSizeM);
+ReadA_TilesN:
     for (int n0 = 0; n0 < tiles_n; ++n0) {
+    ReadA_TilesM:
         for (int m0 = 0; m0 < tiles_m; ++m0) {
+        ReadA_K:
             for (int k = 0; k < size_k; ++k) {
                 ReadAInner<kLinesPerNumber>(mem, a_to_feeder, size_k, n0, k);
             }
@@ -57,10 +63,15 @@ void FeedA(hlslib::Stream<PackedFloat> &a_to_feeder, hlslib::Stream<PackedFloat>
     const auto tiles_n = hlslib::CeilDivide(size_n, kTileSizeN);
     const auto tiles_m = hlslib::CeilDivide(size_m, kTileSizeM);
     PackedFloat a;
+FeedA_TilesN:
     for (int n0 = 0; n0 < tiles_n; ++n0) {
+    FeedA_TilesM:
         for (int m0 = 0; m0 < tiles_m; ++m0) {
+        FeedA_K:
             for (int k = 0; k < size_k; ++k) {
+            FeedA_N:
                 for (int n1 = 0; n1 < kTileSizeN; ++n1) {
+                FeedA_M:
                     for (int m1 = 0; m1 < kTileSizeM; ++m1) {
 #pragma HLS PIPELINE II = 1
 #pragma HLS LOOP_FLATTEN
@@ -82,7 +93,9 @@ void ReadBInner(DramLine const *const mem, hlslib::Stream<PackedFloat> &b_to_fee
                 const int k) {
 #pragma HLS INLINE
     DramLine num[kLinesPerNumber];
+ReadB_M:
     for (int m1 = 0; m1 < kTileSizeM; ++m1) {
+    ReadB_Flits:
         for (int i = 0; i < kLinesPerNumber; ++i) {
 #pragma HLS PIPELINE II = 1
 #pragma HLS LOOP_FLATTEN
@@ -98,6 +111,7 @@ template <>
 void ReadBInner<1>(DramLine const *const mem, hlslib::Stream<PackedFloat> &b_to_feeder, const int size_m, const int m0,
                    const int k) {
 #pragma HLS INLINE
+ReadB_M:
     for (int m1 = 0; m1 < kTileSizeM; ++m1) {
 #pragma HLS PIPELINE II = 1
 #pragma HLS LOOP_FLATTEN
@@ -110,8 +124,11 @@ void ReadB(DramLine const *const mem, hlslib::Stream<PackedFloat> &b_to_feeder, 
            const int size_m) {
     const auto tiles_n = hlslib::CeilDivide(size_n, kTileSizeN);
     const auto tiles_m = hlslib::CeilDivide(size_m, kTileSizeM);
+ReadB_TilesN:
     for (int n0 = 0; n0 < tiles_n; ++n0) {
+    ReadB_TilesM:
         for (int m0 = 0; m0 < tiles_m; ++m0) {
+        ReadB_K:
             for (int k = 0; k < size_k; ++k) {
                 ReadBInner<kLinesPerNumber>(mem, b_to_feeder, size_m, m0, k);
             }
@@ -124,10 +141,15 @@ void FeedB(hlslib::Stream<PackedFloat> &b_to_feeder, hlslib::Stream<PackedFloat>
     const auto tiles_n = hlslib::CeilDivide(size_n, kTileSizeN);
     const auto tiles_m = hlslib::CeilDivide(size_m, kTileSizeM);
     PackedFloat b;
+FeedB_TilesN:
     for (int n0 = 0; n0 < tiles_n; ++n0) {
+    FeedB_TilesM:
         for (int m0 = 0; m0 < tiles_m; ++m0) {
+        FeedB_K:
             for (int k = 0; k < size_k; ++k) {
+            FeedB_N:
                 for (int n1 = 0; n1 < kTileSizeN; ++n1) {
+                FeedB_M:
                     for (int m1 = 0; m1 < kTileSizeM; ++m1) {
 #pragma HLS PIPELINE II = 1
 #pragma HLS LOOP_FLATTEN
@@ -148,8 +170,10 @@ template <int lines_per_number>
 void ReadCInner(DramLine const *const mem, hlslib::Stream<PackedFloat> &c_to_feeder, const int size_m, const int n0,
                 const int m0, const int n1) {
 #pragma HLS INLINE
+ReadC_M:
     for (int m1 = 0; m1 < kTileSizeM; ++m1) {
         DramLine num[kLinesPerNumber];
+    ReadC_Flits:
         for (int i = 0; i < kLinesPerNumber; ++i) {
 #pragma HLS PIPELINE II = 1
 #pragma HLS LOOP_FLATTEN
@@ -165,6 +189,7 @@ template <>
 void ReadCInner<1>(DramLine const *const mem, hlslib::Stream<PackedFloat> &c_to_feeder, const int size_m, const int n0,
                    const int m0, const int n1) {
 #pragma HLS INLINE
+ReadC_M:
     for (int m1 = 0; m1 < kTileSizeM; ++m1) {
 #pragma HLS PIPELINE II = 1
 #pragma HLS LOOP_FLATTEN
@@ -176,8 +201,11 @@ void ReadCInner<1>(DramLine const *const mem, hlslib::Stream<PackedFloat> &c_to_
 void ReadC(DramLine const *const mem, hlslib::Stream<PackedFloat> &c_to_feeder, const int size_n, const int size_m) {
     const auto tiles_n = hlslib::CeilDivide(size_n, kTileSizeN);
     const auto tiles_m = hlslib::CeilDivide(size_m, kTileSizeM);
+ReadC_TilesN:
     for (int n0 = 0; n0 < tiles_n; ++n0) {
+    ReadC_TilesM:
         for (int m0 = 0; m0 < tiles_m; ++m0) {
+        ReadC_N:
             for (int n1 = 0; n1 < kTileSizeN; ++n1) {
                 ReadCInner<kLinesPerNumber>(mem, c_to_feeder, size_m, n0, m0, n1);
             }
@@ -190,10 +218,15 @@ void FeedC(hlslib::Stream<PackedFloat> &c_to_feeder, hlslib::Stream<PackedFloat>
     const auto tiles_n = hlslib::CeilDivide(size_n, kTileSizeN);
     const auto tiles_m = hlslib::CeilDivide(size_m, kTileSizeM);
     PackedFloat c;
+FeedC_TilesN:
     for (int n0 = 0; n0 < tiles_n; ++n0) {
+    FeedC_TilesM:
         for (int m0 = 0; m0 < tiles_m; ++m0) {
+        FeedC_K:
             for (int k = 0; k < size_k; ++k) {
+            FeedC_N:
                 for (int n1 = 0; n1 < kTileSizeN; ++n1) {
+                FeedC_M:
                     for (int m1 = 0; m1 < kTileSizeM; ++m1) {
 #pragma HLS PIPELINE II = 1
 #pragma HLS LOOP_FLATTEN
@@ -214,10 +247,15 @@ void DrainC(hlslib::Stream<PackedFloat> &c_to_drainer, hlslib::Stream<PackedFloa
             const int size_m, const int size_k) {
     const auto tiles_n = hlslib::CeilDivide(size_n, kTileSizeN);
     const auto tiles_m = hlslib::CeilDivide(size_m, kTileSizeM);
+DrainC_TilesN:
     for (int n0 = 0; n0 < tiles_n; ++n0) {
+    DrainC_TilesM:
         for (int m0 = 0; m0 < tiles_m; ++m0) {
+        DrainC_K:
             for (int k = 0; k < size_k; ++k) {
+            DrainC_N:
                 for (int n1 = 0; n1 < kTileSizeN; ++n1) {
+                DrainC_M:
                     for (int m1 = 0; m1 < kTileSizeM; ++m1) {
 #pragma HLS PIPELINE II = 1
 #pragma HLS LOOP_FLATTEN
@@ -236,9 +274,11 @@ template <int lines_per_number>
 void WriteCInner(hlslib::Stream<PackedFloat> &from_kernel, DramLine *const mem, const int size_m, const int n0,
                  const int m0, const int n1) {
 #pragma HLS INLINE
+WriteC_M:
     for (int m1 = 0; m1 < kTileSizeM; ++m1) {
         DramLine num[kLinesPerNumber];
 #pragma HLS ARRAY_PARTITION variable = num complete
+    WriteC_Flits:
         for (int i = 0; i < kLinesPerNumber; ++i) {
 #pragma HLS PIPELINE II = 1
 #pragma HLS LOOP_FLATTEN
@@ -254,6 +294,7 @@ template <>
 void WriteCInner<1>(hlslib::Stream<PackedFloat> &from_kernel, DramLine *const mem, const int size_m, const int n0,
                     const int m0, const int n1) {
 #pragma HLS INLINE
+WriteC_M:
     for (int m1 = 0; m1 < kTileSizeM; ++m1) {
 #pragma HLS PIPELINE II = 1
 #pragma HLS LOOP_FLATTEN
@@ -264,8 +305,13 @@ void WriteCInner<1>(hlslib::Stream<PackedFloat> &from_kernel, DramLine *const me
 }
 
 void WriteC(hlslib::Stream<PackedFloat> &from_kernel, DramLine *const mem, const int size_n, int const size_m) {
-    for (int n0 = 0; n0 < hlslib::CeilDivide(size_n, kTileSizeN); ++n0) {
-        for (int m0 = 0; m0 < hlslib::CeilDivide(size_m, kTileSizeM); ++m0) {
+    const auto tiles_n = hlslib::CeilDivide(size_n, kTileSizeN);
+    const auto tiles_m = hlslib::CeilDivide(size_m, kTileSizeM);
+WriteC_TilesN:
+    for (int n0 = 0; n0 < tiles_n; ++n0) {
+    WriteC_TilesM:
+        for (int m0 = 0; m0 < tiles_m; ++m0) {
+        WriteC_N:
             for (int n1 = 0; n1 < kTileSizeN; ++n1) {
                 WriteCInner<kLinesPerNumber>(from_kernel, mem, size_m, n0, m0, n1);
             }
@@ -280,10 +326,15 @@ void Compute(hlslib::Stream<PackedFloat> &a_in, hlslib::Stream<PackedFloat> &b_i
     PackedFloat a_buffer;  // Just to make A symmetric to B and C
     PackedFloat b_buffer[kTileSizeM];
     PackedFloat c_buffer[kTileSizeN * kTileSizeM];
+Compute_TilesN:
     for (int n0 = 0; n0 < hlslib::CeilDivide(size_n, kTileSizeN); ++n0) {
+    Compute_TilesM:
         for (int m0 = 0; m0 < hlslib::CeilDivide(size_m, kTileSizeM); ++m0) {
+        Compute_K:
             for (int k = 0; k < size_k; ++k) {
+            Compute_N:
                 for (int n1 = 0; n1 < kTileSizeN; ++n1) {
+                Compute_M:
                     for (int m1 = 0; m1 < kTileSizeM; ++m1) {
 #pragma HLS PIPELINE II = 1
 #pragma HLS LOOP_FLATTEN

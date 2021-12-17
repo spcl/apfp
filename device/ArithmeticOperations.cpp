@@ -54,6 +54,7 @@ PackedFloat Add(PackedFloat const &a, PackedFloat const &b) {
     // Optionally shift by 1, 2, 4, 8, 16... log2(B), such that all bits have eventually traveled to
     // their designated position.
     const int kNumStages = hlslib::ConstLog2(kBits);
+ShiftStages:
     for (int i = 0; i < kNumStages; ++i) {
 #pragma HLS UNROLL
         a_mantissa = ((shift_c & (1 << i)) == 0) ? a_mantissa : (a_mantissa >> (1 << i));

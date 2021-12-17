@@ -59,7 +59,7 @@ ReadA_TilesN:
 // In order to eliminate control logic in the compute function, we introduce extra feeders that run in the iteration
 // space of the computational module, but write to the kernel every iteration to absorb the conditional pipeline reads
 void FeedA(hlslib::Stream<PackedFloat> &a_to_feeder, hlslib::Stream<PackedFloat> &a_to_kernel, const int size_n,
-           const int size_m, const int size_k) {
+           const int size_k, const int size_m) {
     const auto tiles_n = hlslib::CeilDivide(size_n, kTileSizeN);
     const auto tiles_m = hlslib::CeilDivide(size_m, kTileSizeM);
     PackedFloat a;
@@ -137,7 +137,7 @@ ReadB_TilesN:
 }
 
 void FeedB(hlslib::Stream<PackedFloat> &b_to_feeder, hlslib::Stream<PackedFloat> &b_to_kernel, const int size_n,
-           const int size_m, const int size_k) {
+           const int size_k, const int size_m) {
     const auto tiles_n = hlslib::CeilDivide(size_n, kTileSizeN);
     const auto tiles_m = hlslib::CeilDivide(size_m, kTileSizeM);
     PackedFloat b;
@@ -214,7 +214,7 @@ ReadC_TilesN:
 }
 
 void FeedC(hlslib::Stream<PackedFloat> &c_to_feeder, hlslib::Stream<PackedFloat> &c_to_kernel, const int size_n,
-           const int size_m, const int size_k) {
+           const int size_k, const int size_m) {
     const auto tiles_n = hlslib::CeilDivide(size_n, kTileSizeN);
     const auto tiles_m = hlslib::CeilDivide(size_m, kTileSizeM);
     PackedFloat c;
@@ -244,7 +244,7 @@ FeedC_TilesN:
 ////////////////////////////////////////////////////////////////////////////////
 
 void DrainC(hlslib::Stream<PackedFloat> &c_to_drainer, hlslib::Stream<PackedFloat> &drainer_to_c, const int size_n,
-            const int size_m, const int size_k) {
+            const int size_k, const int size_m) {
     const auto tiles_n = hlslib::CeilDivide(size_n, kTileSizeN);
     const auto tiles_m = hlslib::CeilDivide(size_m, kTileSizeM);
 DrainC_TilesN:
@@ -326,10 +326,12 @@ void Compute(hlslib::Stream<PackedFloat> &a_in, hlslib::Stream<PackedFloat> &b_i
     PackedFloat a_buffer;  // Just to make A symmetric to B and C
     PackedFloat b_buffer[kTileSizeM];
     PackedFloat c_buffer[kTileSizeN * kTileSizeM];
+    const int tiles_n = hlslib::CeilDivide(size_n, kTileSizeN);
+    const int tiles_m = hlslib::CeilDivide(size_m, kTileSizeM);
 Compute_TilesN:
-    for (int n0 = 0; n0 < hlslib::CeilDivide(size_n, kTileSizeN); ++n0) {
+    for (int n0 = 0; n0 < tiles_n; ++n0) {
     Compute_TilesM:
-        for (int m0 = 0; m0 < hlslib::CeilDivide(size_m, kTileSizeM); ++m0) {
+        for (int m0 = 0; m0 < tiles_m; ++m0) {
         Compute_K:
             for (int k = 0; k < size_k; ++k) {
             Compute_N:

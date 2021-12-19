@@ -143,7 +143,7 @@ int ApfpSyrkImpl(char uplo, char trans, unsigned long N, unsigned long K, ptr_fu
 
         ApfpInterfaceWrapper add_result;
         for(unsigned long i = 0; i < host_result.size(); ++i) {
-            mpf_add(add_result.get(), host_result[i].get(), host_c[i].get());
+            AddApfpInterfaceType(add_result.get(), host_result[i].get(), host_c[i].get());
             SetApfpInterfaceType(host_c[i].get(), add_result.get());
         }
 

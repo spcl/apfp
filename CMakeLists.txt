@@ -11,6 +11,8 @@ set(APFP_TILE_SIZE_N 32 CACHE STRING "Tile size in the N-dimension when running 
 set(APFP_TILE_SIZE_M 32 CACHE STRING "Tile size in the M-dimension when running matrix-matrix multiplication.")
 set(APFP_SEMANTICS "MPFR" CACHE STRING "Which semantics to use for floating point operations [GMP/MPFR].")
 set_property(CACHE APFP_SEMANTICS PROPERTY STRINGS GMP MPFR)
+set(APFP_INTERFACE_TYPE "MPFR" CACHE STRING "Which data types to use for the interface [GMP/MPFR].")
+set_property(CACHE APFP_INTERFACE_TYPE PROPERTY STRINGS GMP MPFR)
 
 # Validation and derived numbers
 math(EXPR APFP_ALIGNED "${APFP_BITS} % 512")
@@ -26,7 +28,7 @@ find_package(MPFR REQUIRED)
 find_package(GMP REQUIRED)
 find_package(Threads REQUIRED)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wpedantic -DAPFP_${APFP_SEMANTICS}_SEMANTICS")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wpedantic -DAPFP_${APFP_SEMANTICS}_SEMANTICS -DAPFP_${APFP_INTERFACE}_INTERFACE_TYPE")
 include_directories(${CMAKE_BINARY_DIR} include SYSTEM hlslib/include ${Vitis_INCLUDE_DIRS} )
 
 configure_file(include/Config.h.in Config.h)

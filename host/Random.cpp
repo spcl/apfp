@@ -29,12 +29,12 @@ __mpfr_struct RandomNumberGenerator::GenerateMpfr() {
     return num[0];
 }
 
-void RandomNumberGenerator::Generate(mpfr_t &num) {
+void RandomNumberGenerator::Generate(mpfr_ptr num) {
     std::unique_lock<std::mutex> lock(mutex_);
     mpfr_urandom(num, state_, kRoundingMode);
 }
 
-void RandomNumberGenerator::Generate(mpf_t &num) {
+void RandomNumberGenerator::Generate(mpf_ptr num) {
     std::unique_lock<std::mutex> lock(mutex_);
     mpf_urandomb(num, state_, kMantissaBits);
 }

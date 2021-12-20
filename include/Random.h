@@ -23,13 +23,13 @@ class RandomNumberGenerator {
     __mpf_struct GenerateGmp();
 
     /// Generate a random GMP number into the specified output variable.
-    void Generate(mpf_t &);
+    void Generate(mpf_ptr);
 
     /// Generate a random MPFR number.
     __mpfr_struct GenerateMpfr();
 
     /// Generate a random MPFR into the specified output variable.
-    void Generate(mpfr_t &);
+    void Generate(mpfr_ptr);
 
    private:
     gmp_randstate_t state_;

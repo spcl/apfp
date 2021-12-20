@@ -41,6 +41,14 @@ void SetApfpInterfaceType(ApfpInterfaceTypePtr dest, ApfpInterfaceTypeConstPtr s
 #endif
 }
 
+void SetApfpInterfaceType(ApfpInterfaceTypePtr dest, long int source) {
+#ifdef APFP_GMP_INTERFACE_TYPE
+    mpf_set(dest, source);
+#else
+    mpfr_set_si(dest, source, mpfr_get_default_rounding_mode());
+#endif
+}
+
 void AddApfpInterfaceType(ApfpInterfaceTypeConstPtr a, ApfpInterfaceTypeConstPtr b, ApfpInterfaceTypePtr dest) {
 #ifdef APFP_GMP_INTERFACE_TYPE
     mpf_add(dest, a, b);
@@ -49,6 +57,13 @@ void AddApfpInterfaceType(ApfpInterfaceTypeConstPtr a, ApfpInterfaceTypeConstPtr
 #endif
 }
 
+void MulApfpInterfaceType(ApfpInterfaceTypeConstPtr a, ApfpInterfaceTypeConstPtr b, ApfpInterfaceTypePtr dest) {
+#ifdef APFP_GMP_INTERFACE_TYPE
+    mpf_mul(dest, a, b);
+#else
+    mpfr_mul(dest, a, b, mpfr_get_default_rounding_mode());
+#endif
+}
 
 ApfpInterfaceWrapper::~ApfpInterfaceWrapper() {
     ClearApfpInterfaceType(data_);

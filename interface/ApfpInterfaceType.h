@@ -22,7 +22,11 @@ void SwapApfpInterfaceType(ApfpInterfaceTypePtr a, ApfpInterfaceTypePtr b);
 
 void SetApfpInterfaceType(ApfpInterfaceTypePtr dest, ApfpInterfaceTypeConstPtr source);
 
+void SetApfpInterfaceType(ApfpInterfaceTypePtr dest, long int source);
+
 void AddApfpInterfaceType(ApfpInterfaceTypeConstPtr a, ApfpInterfaceTypeConstPtr b, ApfpInterfaceTypePtr dest);
+
+void MulApfpInterfaceType(ApfpInterfaceTypeConstPtr a, ApfpInterfaceTypeConstPtr b, ApfpInterfaceTypePtr dest);
 
 /// Smart pointer-like wrapper class for GMP/MPFR types
 class ApfpInterfaceWrapper {

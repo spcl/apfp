@@ -29,7 +29,7 @@ find_package(GMP REQUIRED)
 find_package(Threads REQUIRED)
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wpedantic -DAPFP_${APFP_SEMANTICS}_SEMANTICS -DAPFP_${APFP_INTERFACE}_INTERFACE_TYPE")
-include_directories(${CMAKE_BINARY_DIR} include SYSTEM hlslib/include ${Vitis_INCLUDE_DIRS} )
+include_directories(${CMAKE_BINARY_DIR} include SYSTEM hlslib/include ${Vitis_INCLUDE_DIRS} interface)
 
 configure_file(include/Config.h.in Config.h)
 
@@ -79,8 +79,8 @@ target_link_libraries(TestHardware apfp simulation ${Vitis_LIBRARIES} ${GMP_LIBR
 enable_testing()
 add_test(TestSimulation TestSimulation 4 4 4)
 add_library(Catch host/Catch.cpp)
-add_executable(UnitTests host/UnitTests.cpp)
-target_link_libraries(UnitTests Catch ${GMP_LIBRARIES} ${MPFR_LIBRARIES} apfp simulation)
+add_executable(UnitTests host/UnitTests.cpp host/TestBlas.cpp)
+target_link_libraries(UnitTests Catch ${GMP_LIBRARIES} ${MPFR_LIBRARIES} apfp ApfpHostlib simulation)
 add_test(UnitTests UnitTests)
 
 install(TARGETS ApfpHostlib)

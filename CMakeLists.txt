@@ -79,9 +79,12 @@ target_link_libraries(TestHardware apfp simulation ${Vitis_LIBRARIES} ${GMP_LIBR
 enable_testing()
 add_test(TestSimulation TestSimulation 4 4 4)
 add_library(Catch host/Catch.cpp)
-add_executable(UnitTests host/UnitTests.cpp host/TestBlas.cpp)
+add_executable(UnitTests host/UnitTests.cpp)
 target_link_libraries(UnitTests Catch ${GMP_LIBRARIES} ${MPFR_LIBRARIES} apfp ApfpHostlib simulation)
 add_test(UnitTests UnitTests)
+
+add_executable(BlasUnitTests host/BlasUnitTests.cpp)
+target_link_libraries(BlasUnitTests Catch ${GMP_LIBRARIES} ${MPFR_LIBRARIES} apfp ApfpHostlib simulation)
 
 install(TARGETS ApfpHostlib)
 install(FILES

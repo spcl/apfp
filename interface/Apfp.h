@@ -19,8 +19,8 @@ class Apfp {
     std::optional<hlslib::ocl::Program> program_;
 
     std::size_t lines_per_number_;
-    const std::string kernel_path_ = "";
-
+   
+    static std::string FindKernel();
    public:
     Apfp();
 

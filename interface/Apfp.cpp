@@ -3,12 +3,23 @@
 #include <MatrixMultiplication.h>
 
 #include <stdexcept>
+#include <filesystem>
 
 #include "Config.h"
 
 Apfp::Apfp() {
-    program_.emplace(context_.MakeProgram(kernel_path_));
+    program_.emplace(context_.MakeProgram(FindKernel()));
     lines_per_number_ = kLinesPerNumber;
+}
+
+std::string Apfp::FindKernel() {
+    auto kernel_name = std::filesystem::path("MatrixMultiplication_hw.xclbin");
+    {
+        auto kernel_current_directory = std::filesystem::current_path() / kernel_name;
+        if(std::filesystem::exists(kernel_current_directory)) {
+            return kernel_current_directory.string();
+        }
+    }
 }
 
 DeviceMatrix Apfp::AllocateDeviceMatrix(std::size_t rows, std::size_t cols) {

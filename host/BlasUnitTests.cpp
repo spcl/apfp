@@ -16,7 +16,8 @@ void ApfpSetup() {
 #else
     mpfr_set_default_prec(kMantissaBits);
 #endif
-    ApfpInit(kMantissaBits);
+    auto apfp_error_code = ApfpInit(kMantissaBits);
+    REQUIRE(apfp_error_code == ApfpBlasError::success);
 }
 
 void ApfpTeardown() {

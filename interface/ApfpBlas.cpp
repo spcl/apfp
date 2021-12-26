@@ -35,6 +35,10 @@ int ApfpFinalize() {
     return ApfpBlasError::success;
 }
 
+bool ApfpIsInitialized() {
+    return apfp.has_value();
+}
+
 /// Copy the upper or lower triangle from an NxN matrix A to a full size buffer
 template<typename ptr_function_type>
 void CopyFromMatrixUplo(ApfpBlasUplo uplo, unsigned long N, ptr_function_type A, unsigned long LDA, ApfpInterfaceWrapper* buffer) {
@@ -101,7 +105,11 @@ void CopyToMatrix(unsigned long N, unsigned long K, ptr_function_type A, unsigne
 template<typename ptr_function_type_a, typename ptr_function_type_c>
 int ApfpSyrkImpl(char uplo, char trans, unsigned long N, unsigned long K, ptr_function_type_a A, unsigned long LDA, ptr_function_type_c C, unsigned long LDC) {
     try {
-        // ==== library input validation stuff ====f
+        // ==== library input validation stuff ====
+        if(!ApfpIsInitialized()) {
+            return ApfpBlasError::uninitialized;
+        }
+
         if (std::toupper(uplo) != 'U' && std::toupper(uplo) != 'L') { return -1; }
         auto uplo_validated = static_cast<ApfpBlasUplo>(uplo);
         

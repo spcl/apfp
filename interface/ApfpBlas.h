@@ -19,7 +19,8 @@ enum ApfpBlasError : int {
     success         = 0,
     unknown         = 1,
     unimplemented   = 2,
-    bitwidth        = 3
+    bitwidth        = 3,
+    uninitialized   = 4,
 };
 
 

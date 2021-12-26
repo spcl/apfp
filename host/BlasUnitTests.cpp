@@ -42,6 +42,11 @@ bool IsClose(ApfpInterfaceTypeConstPtr a, ApfpInterfaceTypeConstPtr b) {
     return exp < -((kMantissaBits*3 * 9)/10);
 }
 
+TEST_CASE("Init_Teardown") {
+    ApfpSetup();
+    ApfpTeardown();
+}
+
 TEST_CASE("SYRK") {
     ApfpSetup();
 

@@ -5,6 +5,7 @@
 #include <stdexcept>
 
 static std::optional<Apfp> apfp;
+static std::string last_error_message;
 
 enum ApfpBlasUplo : char {
     upper = 'U',
@@ -20,12 +21,14 @@ int ApfpInit(unsigned long precision) {
     try {
         if (precision > kBits) {
             // Requested bit width too large
+            last_error_message = "Requested bitwidth too large";
             return ApfpBlasError::bitwidth;
         }
         apfp.emplace();
         return ApfpBlasError::success;
-    }catch(...) {
+    }catch(const std::exception& e) {
         // Unknown exception
+        last_error_message = e.what();
         return ApfpBlasError::unknown;
     }
 }
@@ -37,6 +40,10 @@ int ApfpFinalize() {
 
 bool ApfpIsInitialized() {
     return apfp.has_value();
+}
+
+const char* ApfpErrorDescription() {
+    return last_error_message.c_str();
 }
 
 /// Copy the upper or lower triangle from an NxN matrix A to a full size buffer
@@ -156,7 +163,8 @@ int ApfpSyrkImpl(char uplo, char trans, unsigned long N, unsigned long K, ptr_fu
         }
 
         CopyToMatrixUplo(uplo_validated, N, C, LDC, host_c.data());
-    } catch (...) {
+    } catch(const std::exception& e) {
+        last_error_message = e.what();
         return ApfpBlasError::unknown;
     }
 

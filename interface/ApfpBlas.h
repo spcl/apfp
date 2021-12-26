@@ -7,6 +7,11 @@
 using IndexFunction = std::function<ApfpInterfaceTypePtr(unsigned long)>;
 using ConstIndexFunction = std::function<ApfpInterfaceTypeConstPtr(unsigned long)>;
 
+
+/// Null terminated string describing the most recent library error if available
+/// Pointer is only guaranteed to live until the next library call
+const char* ApfpErrorDescription();
+
 int ApfpInit(unsigned long precision);
 
 int ApfpFinalize();
@@ -16,11 +21,11 @@ int ApfpSyrk(char uplo, char trans, unsigned long N, unsigned long K, ApfpInterf
 int ApfpSyrk(char uplo, char trans, unsigned long N, unsigned long K, ConstIndexFunction A, unsigned long LDA, IndexFunction C, unsigned long LDC);
 
 enum ApfpBlasError : int {
-    success         = 0,
-    unknown         = 1,
-    unimplemented   = 2,
-    bitwidth        = 3,
-    uninitialized   = 4,
+    success             = 0,
+    unknown             = 1,
+    unimplemented       = 2,
+    bitwidth            = 3,
+    uninitialized       = 4,
 };
 
 

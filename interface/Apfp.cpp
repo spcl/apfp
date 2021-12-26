@@ -4,22 +4,60 @@
 
 #include <stdexcept>
 #include <filesystem>
+#include <cstdlib>
+#include <string>
 
 #include "Config.h"
 
 Apfp::Apfp() {
-    program_.emplace(context_.MakeProgram(FindKernel()));
+    auto kernel_path = FindKernel();
+    program_.emplace(context_.MakeProgram(kernel_path));
     lines_per_number_ = kLinesPerNumber;
 }
 
 std::string Apfp::FindKernel() {
-    auto kernel_name = std::filesystem::path("MatrixMultiplication_hw.xclbin");
-    {
-        auto kernel_current_directory = std::filesystem::current_path() / kernel_name;
-        if(std::filesystem::exists(kernel_current_directory)) {
-            return kernel_current_directory.string();
+    { // Specify a path to the APFP kernel manually
+        char* apfp_kernel_env_var = std::getenv("APFP_KERNEL");
+        if(apfp_kernel_env_var != nullptr) {
+            auto kernel_override_path = std::filesystem::path(apfp_kernel_env_var);
+            
+            if (!std::filesystem::exists(kernel_override_path)) {
+                throw std::runtime_error("APFP kernel path specified with APFP_KERNEL environment variable does not exist");
+            }
+            return kernel_override_path.string();
+        } 
+    }
+
+    char* apfp_use_simulation_env_var = std::getenv("APFP_USE_SIMULATION");
+    auto apfp_use_simulation = apfp_use_simulation_env_var != nullptr && !std::string(apfp_use_simulation_env_var).empty();
+    auto kernel_name = std::filesystem::path(apfp_use_simulation ? "MatrixMultiplication_hw_emu.xclbin" : "MatrixMultiplication_hw.xclbin");
+
+    { // Search for the kernel in /lib, /usr/lib, LD_LIBRARY_PATH, current directory
+        std::vector<std::filesystem::path> search_paths;
+        // System dirs
+        search_paths.push_back(std::filesystem::path("/lib"));
+        search_paths.push_back(std::filesystem::path("/usr/lib"));
+
+        // LD_LIBRARY_PATH
+        char* ld_library_path_env_var = std::getenv("LD_LIBRARY_PATH");
+        auto ld_library_path = (ld_library_path_env_var == nullptr) ? "" : std::string(ld_library_path_env_var);
+        for(std::size_t begin = 0, end = std::string::npos; begin != end; begin = end) {
+            end = ld_library_path.find(":", begin);
+            search_paths.push_back(std::filesystem::path(ld_library_path.substr(begin, end)));
+        }
+
+        // Current working directory
+        search_paths.push_back(std::filesystem::current_path());
+
+        // Search
+        for(auto candidate_dir : search_paths) {
+            auto candidate_kernel_path = candidate_dir / kernel_name;
+            if(std::filesystem::exists(candidate_kernel_path)) {
+                return candidate_kernel_path.string();
+            }
         }
     }
+
     throw std::runtime_error("Unable to find FPGA kernel");
 }
 

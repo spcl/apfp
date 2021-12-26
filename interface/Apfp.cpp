@@ -20,6 +20,7 @@ std::string Apfp::FindKernel() {
             return kernel_current_directory.string();
         }
     }
+    throw std::runtime_error("Unable to find FPGA kernel");
 }
 
 DeviceMatrix Apfp::AllocateDeviceMatrix(std::size_t rows, std::size_t cols) {

@@ -78,8 +78,8 @@ template<typename ptr_function_type>
 void CopyFromMatrix(unsigned long N, unsigned long K, ptr_function_type A, unsigned long LDA, ApfpInterfaceWrapper* buffer) {
     auto dest_lda = N;
     // Col major layout
-    for (unsigned long j = 0; j < N; ++j) {
-        for (unsigned long i = 0; i < K; ++i) {
+    for (unsigned long j = 0; j < K; ++j) {
+        for (unsigned long i = 0; i < N; ++i) {
             SetApfpInterfaceType(buffer[i + j * dest_lda].get(), A(i + j * LDA));
         }
     }
@@ -88,11 +88,11 @@ void CopyFromMatrix(unsigned long N, unsigned long K, ptr_function_type A, unsig
 /// Copy the transpose of a NxK matrix A to a full size buffer
 template<typename ptr_function_type>
 void CopyTransposeFromMatrix(unsigned long N, unsigned long K, ptr_function_type A, unsigned long LDA, ApfpInterfaceWrapper* buffer) {
-    auto dest_lda = N;
+    auto dest_lda = K;
     // Col major layout
-    for (unsigned long j = 0; j < N; ++j) {
-        for (unsigned long i = 0; i < K; ++i) {
-            SetApfpInterfaceType(buffer[j + i * dest_lda].get(), A(i + j * LDA));
+    for (unsigned long j = 0; j < K; ++j) {
+        for (unsigned long i = 0; i < N; ++i) {
+            SetApfpInterfaceType(buffer[i * dest_lda + j].get(), A(i + j * LDA));
         }
     }
 }
@@ -102,8 +102,8 @@ template<typename ptr_function_type>
 void CopyToMatrix(unsigned long N, unsigned long K, ptr_function_type A, unsigned long LDA, ApfpInterfaceWrapper* buffer) {
     auto source_lda = N;
     // Col major layout
-    for (unsigned long j = 0; j < N; ++j) {
-        for (unsigned long i = 0; i < K; ++i) {
+    for (unsigned long j = 0; j < K; ++j) {
+        for (unsigned long i = 0; i < N; ++i) {
             SetApfpInterfaceType(A(i + j * LDA), buffer[i + j * source_lda].get());
         }
     }
@@ -122,6 +122,11 @@ int ApfpSyrkImpl(char uplo, char trans, unsigned long N, unsigned long K, ptr_fu
         
         if (std::toupper(trans) != 'N' && std::toupper(trans) != 'T') { return -2; }
 
+        // Let's not worry about this mode with N and K being different meanings for now
+        if (trans == ApfpBlasTrans::transpose) {
+            return ApfpBlasError::unimplemented;
+        }
+
         if (LDA < N) { return -6; }
         if (LDC < N) { return -8; }
 
@@ -129,10 +134,6 @@ int ApfpSyrkImpl(char uplo, char trans, unsigned long N, unsigned long K, ptr_fu
         if (N == 0) { return ApfpBlasError::success; }
         if (K == 0) { return ApfpBlasError::success; }
         
-        // Let's not worry about this mode with N and K being different meanings for now
-        if (trans == ApfpBlasTrans::transpose) {
-            return ApfpBlasError::unimplemented;
-        }
         // ==== setup ====
         std::vector<ApfpInterfaceWrapper> host_a, host_a_transpose, host_c;
         host_a.resize(N*K);

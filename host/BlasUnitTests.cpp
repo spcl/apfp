@@ -51,7 +51,7 @@ TEST_CASE("SYRK") {
     ApfpSetup();
 
     auto rng = RandomNumberGenerator();
-    std::array<unsigned long, 8> matrix_sizes {1, 8, 15, 16, 31, 32, 33};
+    std::array<unsigned long, 8> matrix_sizes {1, 8, 15, 16, 31, 32, 33, 0};
     // Test SYRK
     // In 'N' mode, we perform AA^T + C
     // A is NxK (A : R^K -> R^N)
@@ -93,7 +93,7 @@ TEST_CASE("SYRK") {
 
             // Use APFP BLAS library
             auto error_code = ApfpSyrk('L', 'N', N, K, 
-                [&](unsigned long i) { return a_matrix[i].get(); }, K,  
+                [&](unsigned long i) { return a_matrix[i].get(); }, N,  
                 [&](unsigned long i) { return c_matrix[i].get(); }, N);
             REQUIRE(error_code == ApfpBlasError::success);
 

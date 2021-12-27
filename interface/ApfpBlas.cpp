@@ -88,7 +88,7 @@ void CopyFromMatrix(unsigned long N, unsigned long K, ptr_function_type A, unsig
 /// Copy the transpose of a NxK matrix A to a full size buffer
 template<typename ptr_function_type>
 void CopyTransposeFromMatrix(unsigned long N, unsigned long K, ptr_function_type A, unsigned long LDA, ApfpInterfaceWrapper* buffer) {
-    auto dest_lda = K;
+    auto dest_lda = N;
     // Col major layout
     for (unsigned long j = 0; j < N; ++j) {
         for (unsigned long i = 0; i < K; ++i) {

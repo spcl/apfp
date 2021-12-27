@@ -134,14 +134,14 @@ void PackedFloatToInterfaceType(const PackedFloat& packed, mpf_ptr dest) {
 
 template<typename ptr_function_type>
 void DeviceMatrix::TransferToHostImpl(ptr_function_type buffer_ptr_func, std::size_t buffer_size) {
-        if (rows() * cols() >= buffer_size) {
+    if (rows() * cols() > buffer_size) {
         throw std::runtime_error("Destination host buffer size smaller than source device matrix size");
     }
 
     std::vector<PackedFloat> host_buffer;
     host_buffer.resize(cols() * rows());
 
-    buffer_.CopyToHost(0, kLinesPerNumber * rows() * cols(), reinterpret_cast<DramLine*>(host_buffer.data()));
+    buffer_.CopyToHost(0, kLinesPerNumber * host_buffer.size(), reinterpret_cast<DramLine*>(host_buffer.data()));
 
     ApfpInterfaceWrapper scratch;
     for(std::size_t i = 0; i < host_buffer.size(); ++i) {

@@ -24,7 +24,20 @@ void ApfpTeardown() {
     ApfpFinalize();
 }
 
+bool IsZero(ApfpInterfaceTypeConstPtr a) {
+#ifdef APFP_GMP_INTERFACE_TYPE 
+    return mpf_sgn(a) == 0;
+#else
+    return mpfr_sgn(a) == 0;
+#endif
+}
+
 bool IsClose(ApfpInterfaceTypeConstPtr a, ApfpInterfaceTypeConstPtr b) {
+    // Avoids divide by zero if a = b = 0
+    if(IsZero(a) && IsZero(b)) {
+        return true;
+    }
+
     ApfpInterfaceWrapper diff, sum, ratio;
 #ifdef APFP_GMP_INTERFACE_TYPE
     mpf_sub(diff.get(), a, b);

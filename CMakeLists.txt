@@ -91,6 +91,7 @@ install(FILES
     interface/Apfp.h
     interface/ApfpBlas.h
     interface/ApfpInterfaceType.h
+    ${CMAKE_BINARY_DIR}/Config.h
     DESTINATION include/apfp)
 install(FILES
     ${CMAKE_BINARY_DIR}/MatrixMultiplication_hw.xclbin

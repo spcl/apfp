@@ -122,28 +122,34 @@ int ApfpSyrkImpl(char uplo, char trans, unsigned long N, unsigned long K, ptr_fu
         
         if (std::toupper(trans) != 'N' && std::toupper(trans) != 'T') { return -2; }
 
-        // Let's not worry about this mode with N and K being different meanings for now
-        if (trans == ApfpBlasTrans::transpose) {
-            return ApfpBlasError::unimplemented;
-        }
+        // A is NxK if 'N', KxN if 'T'
+        // C is always NxN
+        // N mode
+        // A A^T + C
+        // T mode
+        // A^T A + C
+        bool use_transpose = trans == ApfpBlasTrans::transpose;
 
-        if (LDA < N) { return -6; }
+        unsigned long A_rows = use_transpose ? K : N;
+        unsigned long A_cols = use_transpose ? N : K;
+
+        if (LDA < (use_transpose ? K : N)) { return -6; }
         if (LDC < N) { return -8; }
 
         // Empty matrix no-op
         if (N == 0) { return ApfpBlasError::success; }
-        if (K == 0) { return ApfpBlasError::success; }
+        if (K == 0) { return ApfpBlasError::success; }        
         
         // ==== setup ====
         std::vector<ApfpInterfaceWrapper> host_a, host_a_transpose, host_c;
         host_a.resize(N*K);
-        CopyFromMatrix(N, K, A, LDA, host_a.data());
-        auto device_a = apfp->AllocateDeviceMatrix(N, K);
+        CopyFromMatrix(A_rows, A_cols, A, LDA, host_a.data());
+        auto device_a = apfp->AllocateDeviceMatrix(A_rows, A_cols);
         device_a.TransferToDevice(host_a.data(), host_a.size());
 
         host_a_transpose.resize(K*N);
-        CopyTransposeFromMatrix(N, K, A, LDA, host_a_transpose.data());
-        auto device_a_transpose = apfp->AllocateDeviceMatrix(K, N);
+        CopyTransposeFromMatrix(A_rows, A_cols, A, LDA, host_a_transpose.data());
+        auto device_a_transpose = apfp->AllocateDeviceMatrix(A_cols, A_rows);
         device_a_transpose.TransferToDevice(host_a_transpose.data(), host_a_transpose.size());
 
         host_c.resize(N*N);
@@ -151,7 +157,11 @@ int ApfpSyrkImpl(char uplo, char trans, unsigned long N, unsigned long K, ptr_fu
 
         // ==== compute and teardown ====
         auto mul_result = apfp->AllocateDeviceMatrix(N, N);
-        apfp->MatrixMultiplication(device_a, device_a_transpose, &mul_result);
+        if(use_transpose) {
+            apfp->MatrixMultiplication(device_a_transpose, device_a, &mul_result);
+        } else {
+            apfp->MatrixMultiplication(device_a, device_a_transpose, &mul_result);
+        }
         std::vector<ApfpInterfaceWrapper> host_result;
         host_result.resize(N*N);
 

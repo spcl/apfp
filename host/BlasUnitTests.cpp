@@ -68,6 +68,7 @@ TEST_CASE("SYRK") {
 
     unsigned long N = GENERATE(0, 1, 8, 15, 16, 31, 32, 33);
     unsigned long K = GENERATE(0, 1, 8, 15, 16, 31, 32, 33);
+    char mode = GENERATE('N', 'T');
     // Test SYRK
     // In 'N' mode, we perform AA^T + C
     // A is NxK (A : R^K -> R^N)
@@ -95,21 +96,27 @@ TEST_CASE("SYRK") {
             // lower half
             for(unsigned long i = 0; i < j; ++i) {
                 auto r_idx = i + j*N;
-                SetApfpInterfaceType(ref_result[r_idx].get(), c_matrix[r_idx].get());
+                SetApfpInterfaceType(ref_result.at(r_idx).get(), c_matrix.at(r_idx).get());
                 
                 for(unsigned long k = 0; k < K; ++k) {
-                    // (AB)_ij = sum_k A(i,k)B(k,j)
-                    MulApfpInterfaceType(prod_temp.get(), a_matrix[i + k*N].get(), a_matrix[j + k*N].get());
-                    AddApfpInterfaceType(sum_temp.get(), prod_temp.get(), ref_result[r_idx].get());
-                    SetApfpInterfaceType(ref_result[r_idx].get(), sum_temp.get());
+                    // A is NxK if N, KxN if T
+                    if (mode == 'N') {
+                        // (AB)_ij = sum_k A(i,k)B(k,j)
+                        MulApfpInterfaceType(prod_temp.get(), a_matrix.at(i + k*N).get(), a_matrix.at(j + k*N).get());
+                    } else {
+                        // (AB)_ij = sum_k A(i,k) B(k,j)
+                        MulApfpInterfaceType(prod_temp.get(), a_matrix.at(k + i*K).get(), a_matrix.at(k + j*K).get());
+                    }
+                    AddApfpInterfaceType(sum_temp.get(), prod_temp.get(), ref_result.at(r_idx).get());
+                    SetApfpInterfaceType(ref_result.at(r_idx).get(), sum_temp.get());
                 }
             }
         }
 
         // Use APFP BLAS library
-        auto error_code = ApfpSyrk('L', 'N', N, K, 
-            [&](unsigned long i) { return a_matrix[i].get(); }, N,  
-            [&](unsigned long i) { return c_matrix[i].get(); }, N);
+        auto error_code = ApfpSyrk('L', mode, N, K, 
+            [&](unsigned long i) { return a_matrix.at(i).get(); }, mode == 'N' ? N : K,  
+            [&](unsigned long i) { return c_matrix.at(i).get(); }, N);
         REQUIRE(error_code == ApfpBlasError::success);
 
         // Check all entries are sufficiently close
@@ -117,7 +124,7 @@ TEST_CASE("SYRK") {
         for(unsigned long j = 0; j < N; ++j) {
             // lower half
             for(unsigned long i = 0; i < j; ++i) {
-                REQUIRE(IsClose(ref_result[i + j*N].get(), c_matrix[i + j*N].get()));
+                REQUIRE(IsClose(ref_result.at(i + j*N).get(), c_matrix.at(i + j*N).get()));
             }
         }
     }

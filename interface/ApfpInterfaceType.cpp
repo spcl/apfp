@@ -43,7 +43,7 @@ void SetApfpInterfaceType(ApfpInterfaceTypePtr dest, ApfpInterfaceTypeConstPtr s
 
 void SetApfpInterfaceType(ApfpInterfaceTypePtr dest, long int source) {
 #ifdef APFP_GMP_INTERFACE_TYPE
-    mpf_set(dest, source);
+    mpf_set_ui(dest, source);
 #else
     mpfr_set_si(dest, source, mpfr_get_default_rounding_mode());
 #endif

@@ -30,7 +30,8 @@ bool IsClose(ApfpInterfaceTypeConstPtr a, ApfpInterfaceTypeConstPtr b) {
     mpf_sub(diff.get(), a, b);
     mpf_add(sum.get(), a, b);
     mpf_div(ratio.get(), diff.get(), sum.get());
-    auto exp = mpf_get_exp(ratio.get());
+    long exp;
+    mpf_get_d_2exp(&exp, ratio.get());
 #else
     auto rounding_mode = mpfr_get_default_rounding_mode();
     mpfr_sub(diff.get(), a, b, rounding_mode);

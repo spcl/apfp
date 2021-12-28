@@ -69,6 +69,7 @@ TEST_CASE("SYRK") {
     unsigned long N = GENERATE(0, 1, 8, 15, 16, 31, 32, 33);
     unsigned long K = GENERATE(0, 1, 8, 15, 16, 31, 32, 33);
     char mode = GENERATE('N', 'T');
+    char uplo_mode = GENERATE('U', 'L');
     // Test SYRK
     // In 'N' mode, we perform AA^T + C
     // A is NxK (A : R^K -> R^N)
@@ -94,7 +95,7 @@ TEST_CASE("SYRK") {
         ApfpInterfaceWrapper prod_temp, sum_temp;
         for(unsigned long j = 0; j < N; ++j) {
             // lower half
-            for(unsigned long i = 0; i < j; ++i) {
+            for(unsigned long i = 0; i < N; ++i) {
                 auto r_idx = i + j*N;
                 SetApfpInterfaceType(ref_result.at(r_idx).get(), c_matrix.at(r_idx).get());
                 
@@ -114,7 +115,7 @@ TEST_CASE("SYRK") {
         }
 
         // Use APFP BLAS library
-        auto error_code = ApfpSyrk('L', mode, N, K, 
+        auto error_code = ApfpSyrk(uplo_mode, mode, N, K, 
             [&](unsigned long i) { return a_matrix.at(i).get(); }, mode == 'N' ? N : K,  
             [&](unsigned long i) { return c_matrix.at(i).get(); }, N);
         REQUIRE(error_code == ApfpBlasError::success);
@@ -124,7 +125,11 @@ TEST_CASE("SYRK") {
         for(unsigned long j = 0; j < N; ++j) {
             // lower half
             for(unsigned long i = 0; i < j; ++i) {
-                REQUIRE(IsClose(ref_result.at(i + j*N).get(), c_matrix.at(i + j*N).get()));
+                if (uplo_mode == 'L') {
+                    REQUIRE(IsClose(ref_result.at(i + j*N).get(), c_matrix.at(i + j*N).get()));
+                } else {
+                    REQUIRE(IsClose(ref_result.at(j + i*N).get(), c_matrix.at(j + i*N).get()));
+                }
             }
         }
     }

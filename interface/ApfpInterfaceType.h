@@ -1,4 +1,6 @@
 #pragma once
+#include "Config.h"
+
 #ifdef APFP_GMP_INTERFACE_TYPE // Interface with GMP types
 #include <gmp.h>
 using ApfpInterfaceType = mpf_t;

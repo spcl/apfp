@@ -7,3 +7,5 @@ constexpr int kTileSizeN = ${APFP_TILE_SIZE_N};
 constexpr int kTileSizeM = ${APFP_TILE_SIZE_M};
 constexpr auto kBuildDir = "${CMAKE_BINARY_DIR}";
 static_assert(kBits % 8 == 0, "Number of bits must be byte-aligned.");
+
+#define APFP_${APFP_INTERFACE_TYPE}_INTERFACE_TYPE

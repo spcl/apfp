@@ -66,8 +66,8 @@ TEST_CASE("SYRK") {
 
     auto rng = RandomNumberGenerator();
 
-    unsigned long N = GENERATE(0, 1, 8, 15, 16, 31, 32, 33);
-    unsigned long K = GENERATE(0, 1, 8, 15, 16, 31, 32, 33);
+    unsigned long N = GENERATE(0, 1, 2, 8, 15, 16, 31, 32, 33);
+    unsigned long K = GENERATE(0, 1, 2, 8, 15, 16, 31, 32, 33);
     char mode = GENERATE('N', 'T');
     char uplo_mode = GENERATE('U', 'L');
     // Test SYRK
@@ -125,11 +125,9 @@ TEST_CASE("SYRK") {
         for(unsigned long j = 0; j < N; ++j) {
             // lower half
             for(unsigned long i = 0; i < j; ++i) {
-                if (uplo_mode == 'L') {
-                    REQUIRE(IsClose(ref_result.at(i + j*N).get(), c_matrix.at(i + j*N).get()));
-                } else {
-                    REQUIRE(IsClose(ref_result.at(j + i*N).get(), c_matrix.at(j + i*N).get()));
-                }
+                auto ref_value  = uplo_mode == 'L' ? ref_result.at(i + j*N).get() : ref_result.at(j + i*N).get();
+                auto test_value = uplo_mode == 'L' ? c_matrix.at(i + j*N).get()   : c_matrix.at(j + i*N).get();
+                REQUIRE(IsClose(ref_value, test_value));
             }
         }
     }

@@ -49,7 +49,7 @@ void SetApfpInterfaceType(ApfpInterfaceTypePtr dest, long int source) {
 #endif
 }
 
-void AddApfpInterfaceType(ApfpInterfaceTypeConstPtr a, ApfpInterfaceTypeConstPtr b, ApfpInterfaceTypePtr dest) {
+void AddApfpInterfaceType(ApfpInterfaceTypePtr dest, ApfpInterfaceTypeConstPtr a, ApfpInterfaceTypeConstPtr b) {
 #ifdef APFP_GMP_INTERFACE_TYPE
     mpf_add(dest, a, b);
 #else
@@ -57,7 +57,7 @@ void AddApfpInterfaceType(ApfpInterfaceTypeConstPtr a, ApfpInterfaceTypeConstPtr
 #endif
 }
 
-void MulApfpInterfaceType(ApfpInterfaceTypeConstPtr a, ApfpInterfaceTypeConstPtr b, ApfpInterfaceTypePtr dest) {
+void MulApfpInterfaceType(ApfpInterfaceTypePtr dest, ApfpInterfaceTypeConstPtr a, ApfpInterfaceTypeConstPtr b) {
 #ifdef APFP_GMP_INTERFACE_TYPE
     mpf_mul(dest, a, b);
 #else

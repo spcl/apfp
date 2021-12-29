@@ -1,15 +1,16 @@
 cmake_minimum_required(VERSION 3.0)
 project(apfp)
-
+ 
 set(CMAKE_CXX_STANDARD 17)
 
 # Target options 
 set(APFP_PLATFORM "xilinx_u280_xdma_201920_3" CACHE STRING "Platform string for Vitis.")
 set(APFP_BITS 1024 CACHE STRING "Number of bits to use for a floating point number, including mantissa, exponent, and sign.")
-set(APFP_MULT_BASE_BITS 16 CACHE STRING "Number of bits to bottom out the multiplication at and use native multiplication.")
+set(APFP_MULT_BASE_BITS 18 CACHE STRING "Number of bits to bottom out the multiplication at and use native multiplication.")
 set(APFP_TILE_SIZE_N 32 CACHE STRING "Tile size in the N-dimension when running matrix-matrix multiplication.")
 set(APFP_TILE_SIZE_M 32 CACHE STRING "Tile size in the M-dimension when running matrix-matrix multiplication.")
 set(APFP_SEMANTICS "MPFR" CACHE STRING "Which semantics to use for floating point operations [GMP/MPFR].")
+set(APFP_PROFILING OFF CACHE BOOL "Enable profiling in the generated kernel.")
 set_property(CACHE APFP_SEMANTICS PROPERTY STRINGS GMP MPFR)
 
 # Validation and derived numbers
@@ -26,7 +27,7 @@ find_package(MPFR REQUIRED)
 find_package(GMP REQUIRED)
 find_package(Threads REQUIRED)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wpedantic -DAPFP_${APFP_SEMANTICS}_SEMANTICS")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wpedantic -Wno-unused-label -DAPFP_${APFP_SEMANTICS}_SEMANTICS")
 include_directories(${CMAKE_BINARY_DIR} include SYSTEM hlslib/include ${Vitis_INCLUDE_DIRS} )
 
 configure_file(include/Config.h.in Config.h)
@@ -49,7 +50,7 @@ add_vitis_kernel(MatrixMultiplication FILES ${APFP_KERNEL_FILES}
                              m_axi_b:DDR[1]
                              m_axi_c_read:DDR[1]
                              m_axi_c_write:DDR[1])
-add_vitis_program(MatrixMultiplication ${APFP_PLATFORM})
+add_vitis_program(MatrixMultiplication ${APFP_PLATFORM} PROFILING ${APFP_PROFILING})
 
 # Internal library 
 add_library(apfp host/Random.cpp host/MatrixMultiplicationReference.cpp)

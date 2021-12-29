@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.0)
 project(apfp)
- 
+
 set(CMAKE_CXX_STANDARD 17)
 
 # Target options 
@@ -40,7 +40,7 @@ set(APFP_KERNEL_FILES device/MatrixMultiplication.cpp
 
 # Setup FPGA kernel targets
 add_vitis_kernel(MatrixMultiplication FILES ${APFP_KERNEL_FILES}
-                 INCLUDE_DIRS include hlslib/include ${CMAKE_BINARY_DIR}
+                 INCLUDE_DIRS include hlslib/include ${CMAKE_BINARY_DIR} ${GMP_INCLUDES}
                  HLS_FLAGS "-DAP_INT_MAX_W=${APFP_MAX_BITS} -DAPFP_${APFP_SEMANTICS}_SEMANTICS"
                  HLS_CONFIG "config_compile -pipeline_style frp\nconfig_dataflow -fifo_depth 16"
                  DEPENDS ${CMAKE_BINARY_DIR}/Config.h

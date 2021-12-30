@@ -9,16 +9,6 @@ namespace apfp {
 static std::optional<Apfp> apfp;
 static std::string last_error_message;
 
-enum BlasUplo : char {
-    upper = 'U',
-    lower = 'L'
-};
-
-enum BlasTrans : char {
-    normal = 'N',
-    transpose = 'T',
-};
-
 int Init(unsigned long precision) {
     try {
         if (precision > kBits) {
@@ -117,17 +107,12 @@ void CopyToMatrix(unsigned long N, unsigned long K, ptr_function_type A, unsigne
 }
 
 template<typename ptr_function_type_a, typename ptr_function_type_c>
-int ApfpSyrkImpl(char uplo, char trans, unsigned long N, unsigned long K, ptr_function_type_a A, unsigned long LDA, ptr_function_type_c C, unsigned long LDC) {
+int ApfpSyrkImpl(BlasUplo uplo, BlasTrans trans, unsigned long N, unsigned long K, ptr_function_type_a A, unsigned long LDA, ptr_function_type_c C, unsigned long LDC) {
     try {
         // ==== library input validation stuff ====
         if(!ApfpIsInitialized()) {
             return BlasError::uninitialized;
         }
-
-        if (std::toupper(uplo) != 'U' && std::toupper(uplo) != 'L') { return -1; }
-        auto uplo_validated = static_cast<BlasUplo>(uplo);
-        
-        if (std::toupper(trans) != 'N' && std::toupper(trans) != 'T') { return -2; }
 
         // A is NxK if 'N', KxN if 'T'
         // C is always NxN
@@ -160,7 +145,7 @@ int ApfpSyrkImpl(char uplo, char trans, unsigned long N, unsigned long K, ptr_fu
         device_a_transpose.TransferToDevice(host_a_transpose.data(), host_a_transpose.size());
 
         host_c.resize(N*N);
-        CopyFromMatrixUplo(uplo_validated, N, C, LDC, host_c.data());
+        CopyFromMatrixUplo(uplo, N, C, LDC, host_c.data());
         auto device_c = apfp->AllocateDeviceMatrix(N, N);
         device_c.TransferToDevice(host_c.data(), host_c.size());
 
@@ -173,7 +158,7 @@ int ApfpSyrkImpl(char uplo, char trans, unsigned long N, unsigned long K, ptr_fu
         }
 
         device_c.TransferToHost(host_c.data(), host_c.size());
-        CopyToMatrixUplo(uplo_validated, N, C, LDC, host_c.data());
+        CopyToMatrixUplo(uplo, N, C, LDC, host_c.data());
     } catch(const std::exception& e) {
         last_error_message = e.what();
         return BlasError::unknown;
@@ -183,13 +168,13 @@ int ApfpSyrkImpl(char uplo, char trans, unsigned long N, unsigned long K, ptr_fu
 }
 
 /// See netlib's documentation on Syrk for usage. Alpha and beta unsupported
-int Syrk(char uplo, char trans, unsigned long N, unsigned long K, interface::ConstPtr A, unsigned long LDA, interface::Ptr C, unsigned long LDC) {
+int Syrk(BlasUplo uplo, BlasTrans trans, unsigned long N, unsigned long K, interface::ConstPtr A, unsigned long LDA, interface::Ptr C, unsigned long LDC) {
     auto a_ptr_function = [&](unsigned long i) -> interface::ConstPtr { return A + i; };
     auto c_ptr_function = [&](unsigned long i) -> interface::Ptr { return C + i; };
     return ApfpSyrkImpl(uplo, trans, N, K, a_ptr_function, LDA, c_ptr_function, LDC);
 }
 
-int Syrk(char uplo, char trans, unsigned long N, unsigned long K, ConstIndexFunction A, unsigned long LDA, IndexFunction C, unsigned long LDC) {
+int Syrk(BlasUplo uplo, BlasTrans trans, unsigned long N, unsigned long K, ConstIndexFunction A, unsigned long LDA, IndexFunction C, unsigned long LDC) {
     return ApfpSyrkImpl(uplo, trans, N, K, A, LDA, C, LDC);
 }
 

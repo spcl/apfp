@@ -68,8 +68,8 @@ TEST_CASE("SYRK") {
 
     unsigned long N = GENERATE(0, 1, 2, 8, 15, 16, 31, 32, 33);
     unsigned long K = GENERATE(0, 1, 2, 8, 15, 16, 31, 32, 33);
-    char mode = GENERATE('N', 'T');
-    char uplo_mode = GENERATE('U', 'L');
+    auto mode = GENERATE(apfp::BlasTrans::normal, apfp::BlasTrans::transpose);
+    auto uplo_mode = GENERATE(apfp::BlasUplo::upper, apfp::BlasUplo::lower);
     // Test SYRK
     // In 'N' mode, we perform AA^T + C
     // A is NxK (A : R^K -> R^N)
@@ -101,7 +101,7 @@ TEST_CASE("SYRK") {
                 
                 for(unsigned long k = 0; k < K; ++k) {
                     // A is NxK if N, KxN if T
-                    if (mode == 'N') {
+                    if (mode == apfp::BlasTrans::normal) {
                         // (AB)_ij = sum_k A(i,k)B(k,j)
                         apfp::interface::Mul(prod_temp.get(), a_matrix.at(i + k*N).get(), a_matrix.at(j + k*N).get());
                     } else {
@@ -115,7 +115,7 @@ TEST_CASE("SYRK") {
 
         // Use APFP BLAS library
         auto error_code = apfp::Syrk(uplo_mode, mode, N, K, 
-            [&](unsigned long i) { return a_matrix.at(i).get(); }, mode == 'N' ? N : K,  
+            [&](unsigned long i) { return a_matrix.at(i).get(); }, mode == apfp::BlasTrans::normal ? N : K,  
             [&](unsigned long i) { return c_matrix.at(i).get(); }, N);
         REQUIRE(error_code == apfp::BlasError::success);
 
@@ -124,8 +124,8 @@ TEST_CASE("SYRK") {
         for(unsigned long j = 0; j < N; ++j) {
             // lower half
             for(unsigned long i = 0; i < j; ++i) {
-                auto ref_value  = uplo_mode == 'L' ? ref_result.at(i + j*N).get() : ref_result.at(j + i*N).get();
-                auto test_value = uplo_mode == 'L' ? c_matrix.at(i + j*N).get()   : c_matrix.at(j + i*N).get();
+                auto ref_value  = uplo_mode == apfp::BlasUplo::lower ? ref_result.at(i + j*N).get() : ref_result.at(j + i*N).get();
+                auto test_value = uplo_mode == apfp::BlasUplo::lower ? c_matrix.at(i + j*N).get()   : c_matrix.at(j + i*N).get();
                 REQUIRE(IsClose(ref_value, test_value));
             }
         }

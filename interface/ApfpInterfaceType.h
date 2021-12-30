@@ -1,12 +1,15 @@
 #pragma once
 #include "Config.h"
 
-#ifdef APFP_GMP_INTERFACE_TYPE // Interface with GMP types
 #include <gmp.h>
+#include <mpfr.h>
+
+namespace apfp {
+
+#ifdef APFP_GMP_INTERFACE_TYPE // Interface with GMP types
 using ApfpInterfaceType = mpf_t;
 using ApfpInterfaceTypePtr = mpf_ptr;
 using ApfpInterfaceTypeConstPtr = mpf_srcptr;
-
 #else
 #include <mpfr.h>
 using ApfpInterfaceType = mpfr_t;
@@ -54,3 +57,5 @@ public:
 
     ApfpInterfaceTypeConstPtr get() const { return data_; }
 };
+
+}

@@ -3,7 +3,8 @@
 #include <functional>
 #include "ApfpInterfaceType.h"
 
-// 
+namespace apfp {
+
 using IndexFunction = std::function<ApfpInterfaceTypePtr(unsigned long)>;
 using ConstIndexFunction = std::function<ApfpInterfaceTypeConstPtr(unsigned long)>;
 
@@ -29,4 +30,4 @@ enum ApfpBlasError : int {
     kernel_not_found    = 5,
 };
 
-
+}

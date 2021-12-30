@@ -1,5 +1,7 @@
 #include "ApfpInterfaceType.h"
 
+namespace apfp {
+
 void InitApfpInterfaceType(ApfpInterfaceTypePtr value) {
 #ifdef APFP_GMP_INTERFACE_TYPE
     mpf_init(value);
@@ -87,4 +89,6 @@ ApfpInterfaceWrapper& ApfpInterfaceWrapper::operator=(ApfpInterfaceWrapper&& oth
     SwapApfpInterfaceType(data_, other.data_);
     ClearApfpInterfaceType(other.data_);
     return *this;
+}
+
 }

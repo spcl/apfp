@@ -9,6 +9,8 @@
 
 #include "Config.h"
 
+namespace apfp {
+
 Apfp::Apfp() {
     auto kernel_path = FindKernel();
     program_.emplace(context_.MakeProgram(kernel_path));
@@ -158,4 +160,6 @@ void DeviceMatrix::TransferToHost(ApfpInterfaceTypePtr buffer_ptr, std::size_t b
 
 void DeviceMatrix::TransferToHost(ApfpInterfaceWrapper* buffer_ptr, std::size_t buffer_size) {
     TransferToHostImpl([&](std::size_t i) -> ApfpInterfaceTypePtr { return buffer_ptr[i].get(); }, buffer_size);
+}
+
 }

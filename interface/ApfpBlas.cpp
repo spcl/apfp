@@ -4,6 +4,8 @@
 #include <optional>
 #include <stdexcept>
 
+namespace apfp {
+
 static std::optional<Apfp> apfp;
 static std::string last_error_message;
 
@@ -191,3 +193,4 @@ int ApfpSyrk(char uplo, char trans, unsigned long N, unsigned long K, ConstIndex
     return ApfpSyrkImpl(uplo, trans, N, K, A, LDA, C, LDC);
 }
 
+}

@@ -11,6 +11,8 @@
 
 #include <functional>
 
+namespace apfp {
+
 class DeviceMatrix;
 
 /// Object oriented interface for Apfp
@@ -106,3 +108,5 @@ struct KernelNotFoundException : public ApfpException {
 struct UnimplementedException : public ApfpException {
     using ApfpException::ApfpException;
 };
+
+}

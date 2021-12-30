@@ -41,9 +41,12 @@ std::string Apfp::FindKernel() {
         // LD_LIBRARY_PATH
         char* ld_library_path_env_var = std::getenv("LD_LIBRARY_PATH");
         auto ld_library_path = (ld_library_path_env_var == nullptr) ? "" : std::string(ld_library_path_env_var);
-        for(std::size_t begin = 0, end = std::string::npos; begin != end; begin = end) {
-            end = ld_library_path.find(":", begin);
-            search_paths.push_back(std::filesystem::path(ld_library_path.substr(begin, end)));
+
+        for(std::string::iterator seg_begin = ld_library_path.begin(), seg_end; seg_begin < ld_library_path.end(); seg_begin = seg_end+1) {
+            seg_end = std::find(seg_begin, ld_library_path.end(), ':');
+            
+            std::string candidate_path(seg_begin, seg_end);
+            search_paths.push_back(std::filesystem::path(candidate_path));
         }
 
         // Current working directory

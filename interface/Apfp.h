@@ -81,3 +81,28 @@ class DeviceMatrix {
     template<typename ptr_function_type>
     void TransferToHostImpl(ptr_function_type buffer_ptr_func, std::size_t buffer_size);
 };
+
+// === Custom exception types ===
+struct ApfpException : public std::exception {
+    std::string e;
+    
+    ApfpException() {
+        e = "";
+    }
+
+    ApfpException(const std::string& what_arg) {
+        e = what_arg;
+    }
+
+    virtual const char* what() const noexcept {
+        return e.c_str();
+    }
+};
+
+struct KernelNotFoundException : public ApfpException {
+    using ApfpException::ApfpException;
+};
+
+struct UnimplementedException : public ApfpException {
+    using ApfpException::ApfpException;
+};

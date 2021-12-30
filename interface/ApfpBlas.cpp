@@ -26,7 +26,12 @@ int ApfpInit(unsigned long precision) {
         }
         apfp.emplace();
         return ApfpBlasError::success;
-    }catch(const std::exception& e) {
+        
+    }catch(const KernelNotFoundException& e) {
+        last_error_message = e.what();
+        return ApfpBlasError::kernel_not_found;
+
+    } catch(const std::exception& e) {
         // Unknown exception
         last_error_message = e.what();
         return ApfpBlasError::unknown;

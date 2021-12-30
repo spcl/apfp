@@ -61,7 +61,7 @@ std::string Apfp::FindKernel() {
         }
     }
 
-    throw std::runtime_error("Unable to find FPGA kernel");
+    throw KernelNotFoundException("Unable to find FPGA kernel");
 }
 
 DeviceMatrix Apfp::AllocateDeviceMatrix(std::size_t rows, std::size_t cols) {
@@ -90,15 +90,15 @@ void Apfp::MatrixMultiplication(const DeviceMatrix& a, const DeviceMatrix& b, De
 }
 
 void Apfp::MatrixAddition(const DeviceMatrix&, const DeviceMatrix&, DeviceMatrix*) {
-    throw std::exception();
+    throw UnimplementedException();
 }
 
 void Apfp::TransposeInPlace(DeviceMatrix*) {
-    throw std::exception();
+    throw UnimplementedException();
 }
 
 DeviceMatrix Apfp::Transpose(const DeviceMatrix&) {
-    throw std::exception();
+    throw UnimplementedException();
 }
 
 template<typename ptr_function_type>

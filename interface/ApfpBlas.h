@@ -26,6 +26,7 @@ enum ApfpBlasError : int {
     unimplemented       = 2,
     bitwidth            = 3,
     uninitialized       = 4,
+    kernel_not_found    = 5,
 };
 
 

@@ -159,25 +159,18 @@ int ApfpSyrkImpl(char uplo, char trans, unsigned long N, unsigned long K, ptr_fu
 
         host_c.resize(N*N);
         CopyFromMatrixUplo(uplo_validated, N, C, LDC, host_c.data());
+        auto device_c = apfp->AllocateDeviceMatrix(N, N);
+        device_c.TransferToDevice(host_c.data(), host_c.size());
 
         // ==== compute and teardown ====
         auto mul_result = apfp->AllocateDeviceMatrix(N, N);
         if(use_transpose) {
-            apfp->MatrixMultiplication(device_a_transpose, device_a, &mul_result);
+            apfp->MatrixMultiplication(device_a_transpose, device_a, &device_c);
         } else {
-            apfp->MatrixMultiplication(device_a, device_a_transpose, &mul_result);
-        }
-        std::vector<ApfpInterfaceWrapper> host_result;
-        host_result.resize(N*N);
-
-        mul_result.TransferToHost(host_result.data(), host_result.size());
-
-        ApfpInterfaceWrapper add_result;
-        for(unsigned long i = 0; i < host_result.size(); ++i) {
-            AddApfpInterfaceType(add_result.get(), host_result[i].get(), host_c[i].get());
-            SetApfpInterfaceType(host_c[i].get(), add_result.get());
+            apfp->MatrixMultiplication(device_a, device_a_transpose, &device_c);
         }
 
+        device_c.TransferToHost(host_c.data(), host_c.size());
         CopyToMatrixUplo(uplo_validated, N, C, LDC, host_c.data());
     } catch(const std::exception& e) {
         last_error_message = e.what();

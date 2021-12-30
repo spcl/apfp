@@ -1,14 +1,14 @@
-#include "Config.h"
 #include <catch.hpp>
 #include <iostream>
 #include <limits>
 
+#include "Config.h"
+
 // #include "ArithmeticOperations.h"
 // #include "Karatsuba.h"
 // #include "PackedFloat.h"
-#include "Random.h"
-
 #include "ApfpBlas.h"
+#include "Random.h"
 
 void ApfpSetup() {
 #ifdef APFP_GMP_INTERFACE_TYPE
@@ -25,7 +25,7 @@ void ApfpTeardown() {
 }
 
 bool IsZero(apfp::interface::ConstPtr a) {
-#ifdef APFP_GMP_INTERFACE_TYPE 
+#ifdef APFP_GMP_INTERFACE_TYPE
     return mpf_sgn(a) == 0;
 #else
     return mpfr_sgn(a) == 0;
@@ -34,7 +34,7 @@ bool IsZero(apfp::interface::ConstPtr a) {
 
 bool IsClose(apfp::interface::ConstPtr a, apfp::interface::ConstPtr b) {
     // Avoids divide by zero if a = b = 0
-    if(IsZero(a) && IsZero(b)) {
+    if (IsZero(a) && IsZero(b)) {
         return true;
     }
 
@@ -53,7 +53,7 @@ bool IsClose(apfp::interface::ConstPtr a, apfp::interface::ConstPtr b) {
     auto exp = mpfr_get_exp(ratio.get());
 #endif
     // Require the numbers to match to the first 90% decimal places
-    return exp < -((kMantissaBits*3 * 9)/10);
+    return exp < -((kMantissaBits * 3 * 9) / 10);
 }
 
 TEST_CASE("Init_Teardown") {
@@ -77,36 +77,38 @@ TEST_CASE("SYRK") {
     // Matrices are stored column major because BLAS
     {
         std::vector<apfp::interface::Wrapper> a_matrix;
-        a_matrix.resize(N*K);
-        for(auto& v : a_matrix) {
+        a_matrix.resize(N * K);
+        for (auto& v : a_matrix) {
             rng.Generate(v.get());
         }
 
         std::vector<apfp::interface::Wrapper> c_matrix;
-        c_matrix.resize(N*N);
-        for(auto& v : c_matrix) {
+        c_matrix.resize(N * N);
+        for (auto& v : c_matrix) {
             rng.Generate(v.get());
         }
 
         std::vector<apfp::interface::Wrapper> ref_result;
-        ref_result.resize(N*N);
+        ref_result.resize(N * N);
 
         // Compute reference result
         apfp::interface::Wrapper prod_temp;
-        for(unsigned long j = 0; j < N; ++j) {
+        for (unsigned long j = 0; j < N; ++j) {
             // lower half
-            for(unsigned long i = 0; i < N; ++i) {
-                auto r_idx = i + j*N;
+            for (unsigned long i = 0; i < N; ++i) {
+                auto r_idx = i + j * N;
                 apfp::interface::Set(ref_result.at(r_idx).get(), c_matrix.at(r_idx).get());
-                
-                for(unsigned long k = 0; k < K; ++k) {
+
+                for (unsigned long k = 0; k < K; ++k) {
                     // A is NxK if N, KxN if T
                     if (mode == apfp::BlasTrans::normal) {
                         // (AB)_ij = sum_k A(i,k)B(k,j)
-                        apfp::interface::Mul(prod_temp.get(), a_matrix.at(i + k*N).get(), a_matrix.at(j + k*N).get());
+                        apfp::interface::Mul(prod_temp.get(), a_matrix.at(i + k * N).get(),
+                                             a_matrix.at(j + k * N).get());
                     } else {
                         // (AB)_ij = sum_k A(i,k) B(k,j)
-                        apfp::interface::Mul(prod_temp.get(), a_matrix.at(k + i*K).get(), a_matrix.at(k + j*K).get());
+                        apfp::interface::Mul(prod_temp.get(), a_matrix.at(k + i * K).get(),
+                                             a_matrix.at(k + j * K).get());
                     }
                     apfp::interface::Add(ref_result.at(r_idx).get(), prod_temp.get(), ref_result.at(r_idx).get());
                 }
@@ -114,18 +116,20 @@ TEST_CASE("SYRK") {
         }
 
         // Use APFP BLAS library
-        auto error_code = apfp::Syrk(uplo_mode, mode, N, K, 
-            [&](unsigned long i) { return a_matrix.at(i).get(); }, mode == apfp::BlasTrans::normal ? N : K,  
-            [&](unsigned long i) { return c_matrix.at(i).get(); }, N);
+        auto error_code = apfp::Syrk(
+            uplo_mode, mode, N, K, [&](unsigned long i) { return a_matrix.at(i).get(); },
+            mode == apfp::BlasTrans::normal ? N : K, [&](unsigned long i) { return c_matrix.at(i).get(); }, N);
         REQUIRE(error_code == apfp::BlasError::success);
 
         // Check all entries are sufficiently close
         apfp::interface::Wrapper diff;
-        for(unsigned long j = 0; j < N; ++j) {
+        for (unsigned long j = 0; j < N; ++j) {
             // lower half
-            for(unsigned long i = 0; i < j; ++i) {
-                auto ref_value  = uplo_mode == apfp::BlasUplo::lower ? ref_result.at(i + j*N).get() : ref_result.at(j + i*N).get();
-                auto test_value = uplo_mode == apfp::BlasUplo::lower ? c_matrix.at(i + j*N).get()   : c_matrix.at(j + i*N).get();
+            for (unsigned long i = 0; i < j; ++i) {
+                auto ref_value = uplo_mode == apfp::BlasUplo::lower ? ref_result.at(i + j * N).get()
+                                                                    : ref_result.at(j + i * N).get();
+                auto test_value =
+                    uplo_mode == apfp::BlasUplo::lower ? c_matrix.at(i + j * N).get() : c_matrix.at(j + i * N).get();
                 REQUIRE(IsClose(ref_value, test_value));
             }
         }

@@ -1,9 +1,8 @@
 #pragma once
-#include "Config.h"
-
 #include <gmp.h>
 #include <mpfr.h>
 
+#include "Config.h"
 
 /* This header abstracts away the choice of MPFR or GMP in the interface
  * It defines four types: Value, Ptr, ConstPtr, Wrapper
@@ -12,7 +11,7 @@
  */
 namespace apfp::interface {
 
-#ifdef APFP_GMP_INTERFACE_TYPE // Interface with GMP types
+#ifdef APFP_GMP_INTERFACE_TYPE  // Interface with GMP types
 using Value = mpf_t;
 using Ptr = mpf_ptr;
 using ConstPtr = mpf_srcptr;
@@ -43,7 +42,7 @@ void Mul(Ptr dest, ConstPtr a, ConstPtr b);
 class Wrapper {
     Value data_;
 
-public:
+   public:
     ~Wrapper();
 
     Wrapper();
@@ -57,11 +56,15 @@ public:
     Wrapper& operator=(const Wrapper&) = delete;
 
     Wrapper& operator=(Wrapper&&);
-    
-    // This decays to the pointer type
-    Ptr get() { return data_; }
 
-    ConstPtr get() const { return data_; }
+    // This decays to the pointer type
+    Ptr get() {
+        return data_;
+    }
+
+    ConstPtr get() const {
+        return data_;
+    }
 };
 
-}
+}  // namespace apfp::interface

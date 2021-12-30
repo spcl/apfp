@@ -2,9 +2,9 @@
 
 #include <MatrixMultiplication.h>
 
-#include <stdexcept>
-#include <filesystem>
 #include <cstdlib>
+#include <filesystem>
+#include <stdexcept>
 #include <string>
 
 #include "Config.h"
@@ -18,23 +18,26 @@ Apfp::Apfp() {
 }
 
 std::string Apfp::FindKernel() {
-    { // Specify a path to the APFP kernel manually
+    {  // Specify a path to the APFP kernel manually
         char* apfp_kernel_env_var = std::getenv("APFP_KERNEL");
-        if(apfp_kernel_env_var != nullptr) {
+        if (apfp_kernel_env_var != nullptr) {
             auto kernel_override_path = std::filesystem::path(apfp_kernel_env_var);
-            
+
             if (!std::filesystem::exists(kernel_override_path)) {
-                throw std::runtime_error("APFP kernel path specified with APFP_KERNEL environment variable does not exist");
+                throw std::runtime_error(
+                    "APFP kernel path specified with APFP_KERNEL environment variable does not exist");
             }
             return kernel_override_path.string();
-        } 
+        }
     }
 
     char* apfp_use_simulation_env_var = std::getenv("APFP_USE_SIMULATION");
-    auto apfp_use_simulation = apfp_use_simulation_env_var != nullptr && !std::string(apfp_use_simulation_env_var).empty();
-    auto kernel_name = std::filesystem::path(apfp_use_simulation ? "MatrixMultiplication_hw_emu.xclbin" : "MatrixMultiplication_hw.xclbin");
+    auto apfp_use_simulation =
+        apfp_use_simulation_env_var != nullptr && !std::string(apfp_use_simulation_env_var).empty();
+    auto kernel_name = std::filesystem::path(apfp_use_simulation ? "MatrixMultiplication_hw_emu.xclbin"
+                                                                 : "MatrixMultiplication_hw.xclbin");
 
-    { // Search for the kernel in /lib, /usr/lib, LD_LIBRARY_PATH, current directory
+    {  // Search for the kernel in /lib, /usr/lib, LD_LIBRARY_PATH, current directory
         std::vector<std::filesystem::path> search_paths;
         // System dirs
         search_paths.push_back(std::filesystem::path("/lib"));
@@ -44,9 +47,10 @@ std::string Apfp::FindKernel() {
         char* ld_library_path_env_var = std::getenv("LD_LIBRARY_PATH");
         auto ld_library_path = (ld_library_path_env_var == nullptr) ? "" : std::string(ld_library_path_env_var);
 
-        for(std::string::iterator seg_begin = ld_library_path.begin(), seg_end; seg_begin < ld_library_path.end(); seg_begin = seg_end+1) {
+        for (std::string::iterator seg_begin = ld_library_path.begin(), seg_end; seg_begin < ld_library_path.end();
+             seg_begin = seg_end + 1) {
             seg_end = std::find(seg_begin, ld_library_path.end(), ':');
-            
+
             std::string candidate_path(seg_begin, seg_end);
             search_paths.push_back(std::filesystem::path(candidate_path));
         }
@@ -55,9 +59,9 @@ std::string Apfp::FindKernel() {
         search_paths.push_back(std::filesystem::current_path());
 
         // Search
-        for(auto candidate_dir : search_paths) {
+        for (auto candidate_dir : search_paths) {
             auto candidate_kernel_path = candidate_dir / kernel_name;
-            if(std::filesystem::exists(candidate_kernel_path)) {
+            if (std::filesystem::exists(candidate_kernel_path)) {
                 return candidate_kernel_path.string();
             }
         }
@@ -86,8 +90,9 @@ void Apfp::MatrixMultiplication(const DeviceMatrix& a, const DeviceMatrix& b, De
     if (a.cols() != b.rows() || result->rows() != a.rows() || result->cols() != b.cols()) {
         throw std::logic_error("Matrix dimension mismatch");
     }
-    auto kernel = program_->MakeKernel("MatrixMultiplication", a.buffer_, b.buffer_, result->buffer_, result->buffer_,
-                                       static_cast<int>(a.rows()), static_cast<int>(b.rows()), static_cast<int>(result->cols()));
+    auto kernel =
+        program_->MakeKernel("MatrixMultiplication", a.buffer_, b.buffer_, result->buffer_, result->buffer_,
+                             static_cast<int>(a.rows()), static_cast<int>(b.rows()), static_cast<int>(result->cols()));
     kernel.ExecuteTask();
 }
 
@@ -103,7 +108,7 @@ DeviceMatrix Apfp::Transpose(const DeviceMatrix&) {
     throw UnimplementedException();
 }
 
-template<typename ptr_function_type>
+template <typename ptr_function_type>
 void DeviceMatrix::TransferToDeviceImpl(ptr_function_type buffer_ptr_func, std::size_t buffer_size) {
     if (rows() * cols() > buffer_size) {
         throw std::runtime_error("Source host buffer size smaller than destination device matrix size");
@@ -113,7 +118,7 @@ void DeviceMatrix::TransferToDeviceImpl(ptr_function_type buffer_ptr_func, std::
     std::vector<PackedFloat> host_buffer;
     host_buffer.resize(cols() * rows());
 
-    for(std::size_t i = 0; i < host_buffer.size(); ++i) {
+    for (std::size_t i = 0; i < host_buffer.size(); ++i) {
         host_buffer[i] = PackedFloat(buffer_ptr_func(i));
     }
 
@@ -137,7 +142,7 @@ void PackedFloatToInterfaceType(const PackedFloat& packed, mpf_ptr dest) {
     packed.ToGmp(dest);
 }
 
-template<typename ptr_function_type>
+template <typename ptr_function_type>
 void DeviceMatrix::TransferToHostImpl(ptr_function_type buffer_ptr_func, std::size_t buffer_size) {
     if (rows() * cols() > buffer_size) {
         throw std::runtime_error("Destination host buffer size smaller than source device matrix size");
@@ -149,7 +154,7 @@ void DeviceMatrix::TransferToHostImpl(ptr_function_type buffer_ptr_func, std::si
     buffer_.CopyToHost(0, kLinesPerNumber * host_buffer.size(), reinterpret_cast<DramLine*>(host_buffer.data()));
 
     interface::Wrapper scratch;
-    for(std::size_t i = 0; i < host_buffer.size(); ++i) {
+    for (std::size_t i = 0; i < host_buffer.size(); ++i) {
         PackedFloatToInterfaceType(host_buffer[i], buffer_ptr_func(i));
     }
 }
@@ -162,4 +167,4 @@ void DeviceMatrix::TransferToHost(interface::Wrapper* buffer_ptr, std::size_t bu
     TransferToHostImpl([&](std::size_t i) -> interface::Ptr { return buffer_ptr[i].get(); }, buffer_size);
 }
 
-}
+}  // namespace apfp

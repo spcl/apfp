@@ -79,7 +79,6 @@ Wrapper::Wrapper(unsigned long precision) {
     Init2(data_, precision);
 }
 
-
 Wrapper::Wrapper(Wrapper&& other) {
     Swap(data_, other.data_);
     Clear(other.data_);
@@ -91,4 +90,4 @@ Wrapper& Wrapper::operator=(Wrapper&& other) {
     return *this;
 }
 
-}
+}  // namespace apfp::interface

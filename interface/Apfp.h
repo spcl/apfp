@@ -2,14 +2,12 @@
 #include <gmp.h>
 #include <hlslib/xilinx/OpenCL.h>
 
+#include <functional>
 #include <optional>
 
+#include "ApfpInterfaceType.h"
 #include "MatrixMultiplication.h"
 #include "PackedFloat.h"
-
-#include "ApfpInterfaceType.h"
-
-#include <functional>
 
 namespace apfp {
 
@@ -21,8 +19,9 @@ class Apfp {
     std::optional<hlslib::ocl::Program> program_;
 
     std::size_t lines_per_number_;
-   
+
     static std::string FindKernel();
+
    public:
     Apfp();
 
@@ -70,24 +69,23 @@ class DeviceMatrix {
     void TransferToDevice(interface::ConstPtr buffer_ptr, std::size_t buffer_size);
     void TransferToDevice(const interface::Wrapper* buffer_ptr, std::size_t buffer_size);
 
-
     /// Transfer from the device to the host
     /// TODO: Make this take output iterators
     void TransferToHost(interface::Ptr buffer_ptr, std::size_t buffer_size);
     void TransferToHost(interface::Wrapper* buffer_ptr, std::size_t buffer_size);
 
    private:
-    template<typename ptr_function_type>
+    template <typename ptr_function_type>
     void TransferToDeviceImpl(ptr_function_type buffer_ptr_func, std::size_t buffer_size);
 
-    template<typename ptr_function_type>
+    template <typename ptr_function_type>
     void TransferToHostImpl(ptr_function_type buffer_ptr_func, std::size_t buffer_size);
 };
 
 // === Custom exception types ===
 struct ApfpException : public std::exception {
     std::string e;
-    
+
     ApfpException() {
         e = "";
     }
@@ -109,4 +107,4 @@ struct UnimplementedException : public ApfpException {
     using ApfpException::ApfpException;
 };
 
-}
+}  // namespace apfp

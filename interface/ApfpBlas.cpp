@@ -1,8 +1,10 @@
 #include "ApfpBlas.h"
-#include "Apfp.h"
-#include "Config.h"
+
 #include <optional>
 #include <stdexcept>
+
+#include "Apfp.h"
+#include "Config.h"
 
 namespace apfp {
 
@@ -18,12 +20,12 @@ int Init(unsigned long precision) {
         }
         apfp.emplace();
         return BlasError::success;
-        
-    }catch(const KernelNotFoundException& e) {
+
+    } catch (const KernelNotFoundException& e) {
         last_error_message = e.what();
         return BlasError::kernel_not_found;
 
-    } catch(const std::exception& e) {
+    } catch (const std::exception& e) {
         // Unknown exception
         last_error_message = e.what();
         return BlasError::unknown;
@@ -44,8 +46,9 @@ const char* ErrorDescription() {
 }
 
 /// Copy the upper or lower triangle from an NxN matrix A to a full size buffer
-template<typename ptr_function_type>
-void CopyFromMatrixUplo(BlasUplo uplo, unsigned long N, ptr_function_type A, unsigned long LDA, interface::Wrapper* buffer) {
+template <typename ptr_function_type>
+void CopyFromMatrixUplo(BlasUplo uplo, unsigned long N, ptr_function_type A, unsigned long LDA,
+                        interface::Wrapper* buffer) {
     auto dest_lda = N;
     // Col major layout
     for (unsigned long j = 0; j < N; ++j) {
@@ -58,8 +61,9 @@ void CopyFromMatrixUplo(BlasUplo uplo, unsigned long N, ptr_function_type A, uns
 }
 
 /// Copy from a full size buffer to the upper or lower triangle of an NxN matrix A
-template<typename ptr_function_type>
-void CopyToMatrixUplo(BlasUplo uplo, unsigned long N, ptr_function_type A, unsigned long LDA, interface::Wrapper* buffer) {
+template <typename ptr_function_type>
+void CopyToMatrixUplo(BlasUplo uplo, unsigned long N, ptr_function_type A, unsigned long LDA,
+                      interface::Wrapper* buffer) {
     auto source_lda = N;
     // Col major layout
     for (unsigned long j = 0; j < N; ++j) {
@@ -71,8 +75,9 @@ void CopyToMatrixUplo(BlasUplo uplo, unsigned long N, ptr_function_type A, unsig
 }
 
 /// Copy from an NxK matrix A to a full size buffer
-template<typename ptr_function_type>
-void CopyFromMatrix(unsigned long N, unsigned long K, ptr_function_type A, unsigned long LDA, interface::Wrapper* buffer) {
+template <typename ptr_function_type>
+void CopyFromMatrix(unsigned long N, unsigned long K, ptr_function_type A, unsigned long LDA,
+                    interface::Wrapper* buffer) {
     auto dest_lda = N;
     // Col major layout
     for (unsigned long j = 0; j < K; ++j) {
@@ -83,8 +88,9 @@ void CopyFromMatrix(unsigned long N, unsigned long K, ptr_function_type A, unsig
 }
 
 /// Copy the transpose of a NxK matrix A to a full size buffer
-template<typename ptr_function_type>
-void CopyTransposeFromMatrix(unsigned long N, unsigned long K, ptr_function_type A, unsigned long LDA, interface::Wrapper* buffer) {
+template <typename ptr_function_type>
+void CopyTransposeFromMatrix(unsigned long N, unsigned long K, ptr_function_type A, unsigned long LDA,
+                             interface::Wrapper* buffer) {
     auto dest_lda = K;
     // Col major layout
     for (unsigned long j = 0; j < K; ++j) {
@@ -95,8 +101,9 @@ void CopyTransposeFromMatrix(unsigned long N, unsigned long K, ptr_function_type
 }
 
 /// Copy to an NxK matrix A from a full size buffer
-template<typename ptr_function_type>
-void CopyToMatrix(unsigned long N, unsigned long K, ptr_function_type A, unsigned long LDA, interface::Wrapper* buffer) {
+template <typename ptr_function_type>
+void CopyToMatrix(unsigned long N, unsigned long K, ptr_function_type A, unsigned long LDA,
+                  interface::Wrapper* buffer) {
     auto source_lda = N;
     // Col major layout
     for (unsigned long j = 0; j < K; ++j) {
@@ -106,11 +113,12 @@ void CopyToMatrix(unsigned long N, unsigned long K, ptr_function_type A, unsigne
     }
 }
 
-template<typename ptr_function_type_a, typename ptr_function_type_c>
-int ApfpSyrkImpl(BlasUplo uplo, BlasTrans trans, unsigned long N, unsigned long K, ptr_function_type_a A, unsigned long LDA, ptr_function_type_c C, unsigned long LDC) {
+template <typename ptr_function_type_a, typename ptr_function_type_c>
+int ApfpSyrkImpl(BlasUplo uplo, BlasTrans trans, unsigned long N, unsigned long K, ptr_function_type_a A,
+                 unsigned long LDA, ptr_function_type_c C, unsigned long LDC) {
     try {
         // ==== library input validation stuff ====
-        if(!ApfpIsInitialized()) {
+        if (!ApfpIsInitialized()) {
             return BlasError::uninitialized;
         }
 
@@ -125,33 +133,41 @@ int ApfpSyrkImpl(BlasUplo uplo, BlasTrans trans, unsigned long N, unsigned long 
         unsigned long A_rows = use_transpose ? K : N;
         unsigned long A_cols = use_transpose ? N : K;
 
-        if (LDA < (use_transpose ? K : N)) { return -6; }
-        if (LDC < N) { return -8; }
+        if (LDA < (use_transpose ? K : N)) {
+            return -6;
+        }
+        if (LDC < N) {
+            return -8;
+        }
 
         // Empty matrix no-op
-        if (N == 0) { return BlasError::success; }
-        if (K == 0) { return BlasError::success; }        
-        
+        if (N == 0) {
+            return BlasError::success;
+        }
+        if (K == 0) {
+            return BlasError::success;
+        }
+
         // ==== setup ====
         std::vector<interface::Wrapper> host_a, host_a_transpose, host_c;
-        host_a.resize(N*K);
+        host_a.resize(N * K);
         CopyFromMatrix(A_rows, A_cols, A, LDA, host_a.data());
         auto device_a = apfp->AllocateDeviceMatrix(A_rows, A_cols);
         device_a.TransferToDevice(host_a.data(), host_a.size());
 
-        host_a_transpose.resize(K*N);
+        host_a_transpose.resize(K * N);
         CopyTransposeFromMatrix(A_rows, A_cols, A, LDA, host_a_transpose.data());
         auto device_a_transpose = apfp->AllocateDeviceMatrix(A_cols, A_rows);
         device_a_transpose.TransferToDevice(host_a_transpose.data(), host_a_transpose.size());
 
-        host_c.resize(N*N);
+        host_c.resize(N * N);
         CopyFromMatrixUplo(uplo, N, C, LDC, host_c.data());
         auto device_c = apfp->AllocateDeviceMatrix(N, N);
         device_c.TransferToDevice(host_c.data(), host_c.size());
 
         // ==== compute and teardown ====
         auto mul_result = apfp->AllocateDeviceMatrix(N, N);
-        if(use_transpose) {
+        if (use_transpose) {
             apfp->MatrixMultiplication(device_a_transpose, device_a, &device_c);
         } else {
             apfp->MatrixMultiplication(device_a, device_a_transpose, &device_c);
@@ -159,7 +175,7 @@ int ApfpSyrkImpl(BlasUplo uplo, BlasTrans trans, unsigned long N, unsigned long 
 
         device_c.TransferToHost(host_c.data(), host_c.size());
         CopyToMatrixUplo(uplo, N, C, LDC, host_c.data());
-    } catch(const std::exception& e) {
+    } catch (const std::exception& e) {
         last_error_message = e.what();
         return BlasError::unknown;
     }
@@ -168,14 +184,16 @@ int ApfpSyrkImpl(BlasUplo uplo, BlasTrans trans, unsigned long N, unsigned long 
 }
 
 /// See netlib's documentation on Syrk for usage. Alpha and beta unsupported
-int Syrk(BlasUplo uplo, BlasTrans trans, unsigned long N, unsigned long K, interface::ConstPtr A, unsigned long LDA, interface::Ptr C, unsigned long LDC) {
+int Syrk(BlasUplo uplo, BlasTrans trans, unsigned long N, unsigned long K, interface::ConstPtr A, unsigned long LDA,
+         interface::Ptr C, unsigned long LDC) {
     auto a_ptr_function = [&](unsigned long i) -> interface::ConstPtr { return A + i; };
     auto c_ptr_function = [&](unsigned long i) -> interface::Ptr { return C + i; };
     return ApfpSyrkImpl(uplo, trans, N, K, a_ptr_function, LDA, c_ptr_function, LDC);
 }
 
-int Syrk(BlasUplo uplo, BlasTrans trans, unsigned long N, unsigned long K, ConstIndexFunction A, unsigned long LDA, IndexFunction C, unsigned long LDC) {
+int Syrk(BlasUplo uplo, BlasTrans trans, unsigned long N, unsigned long K, ConstIndexFunction A, unsigned long LDA,
+         IndexFunction C, unsigned long LDC) {
     return ApfpSyrkImpl(uplo, trans, N, K, A, LDA, C, LDC);
 }
 
-}
+}  // namespace apfp

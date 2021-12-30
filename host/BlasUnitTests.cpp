@@ -92,7 +92,7 @@ TEST_CASE("SYRK") {
         ref_result.resize(N*N);
 
         // Compute reference result
-        ApfpInterfaceWrapper prod_temp, sum_temp;
+        ApfpInterfaceWrapper prod_temp;
         for(unsigned long j = 0; j < N; ++j) {
             // lower half
             for(unsigned long i = 0; i < N; ++i) {
@@ -108,8 +108,7 @@ TEST_CASE("SYRK") {
                         // (AB)_ij = sum_k A(i,k) B(k,j)
                         MulApfpInterfaceType(prod_temp.get(), a_matrix.at(k + i*K).get(), a_matrix.at(k + j*K).get());
                     }
-                    AddApfpInterfaceType(sum_temp.get(), prod_temp.get(), ref_result.at(r_idx).get());
-                    SetApfpInterfaceType(ref_result.at(r_idx).get(), sum_temp.get());
+                    AddApfpInterfaceType(ref_result.at(r_idx).get(), prod_temp.get(), ref_result.at(r_idx).get());
                 }
             }
         }

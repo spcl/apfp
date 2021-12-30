@@ -46,6 +46,7 @@ add_vitis_kernel(MatrixMultiplication FILES ${APFP_KERNEL_FILES}
                          include/Karatsuba.h
                          include/MatrixMultiplication.h
                          include/PackedFloat.h
+                         include/Karatsuba_impl.h
                 PORT_MAPPING m_axi_a:DDR[1]
                              m_axi_b:DDR[1]
                              m_axi_c_read:DDR[1]

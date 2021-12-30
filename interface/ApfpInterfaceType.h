@@ -4,58 +4,64 @@
 #include <gmp.h>
 #include <mpfr.h>
 
-namespace apfp {
+
+/* This header abstracts away the choice of MPFR or GMP in the interface
+ * It defines four types: Value, Ptr, ConstPtr, Wrapper
+ * The first three directly correspond to MPFR/GMP types
+ * The last one is a wrapper that manages the memory footprint with RAII
+ */
+namespace apfp::interface {
 
 #ifdef APFP_GMP_INTERFACE_TYPE // Interface with GMP types
-using ApfpInterfaceType = mpf_t;
-using ApfpInterfaceTypePtr = mpf_ptr;
-using ApfpInterfaceTypeConstPtr = mpf_srcptr;
+using Value = mpf_t;
+using Ptr = mpf_ptr;
+using ConstPtr = mpf_srcptr;
 #else
 #include <mpfr.h>
-using ApfpInterfaceType = mpfr_t;
-using ApfpInterfaceTypePtr = mpfr_ptr;
-using ApfpInterfaceTypeConstPtr = mpfr_srcptr;
+using Value = mpfr_t;
+using Ptr = mpfr_ptr;
+using ConstPtr = mpfr_srcptr;
 #endif
 
-void InitApfpInterfaceType(ApfpInterfaceTypePtr value);
+void Init(Ptr value);
 
-void Init2ApfpInterfaceType(ApfpInterfaceTypePtr value, unsigned long precision);
+void Init2(Ptr value, unsigned long precision);
 
-void ClearApfpInterfaceType(ApfpInterfaceTypePtr value);
+void Clear(Ptr value);
 
-void SwapApfpInterfaceType(ApfpInterfaceTypePtr a, ApfpInterfaceTypePtr b);
+void Swap(Ptr a, Ptr b);
 
-void SetApfpInterfaceType(ApfpInterfaceTypePtr dest, ApfpInterfaceTypeConstPtr source);
+void Set(Ptr dest, ConstPtr source);
 
-void SetApfpInterfaceType(ApfpInterfaceTypePtr dest, long int source);
+void Set(Ptr dest, long int source);
 
-void AddApfpInterfaceType(ApfpInterfaceTypePtr dest, ApfpInterfaceTypeConstPtr a, ApfpInterfaceTypeConstPtr b);
+void Add(Ptr dest, ConstPtr a, ConstPtr b);
 
-void MulApfpInterfaceType(ApfpInterfaceTypePtr dest, ApfpInterfaceTypeConstPtr a, ApfpInterfaceTypeConstPtr b);
+void Mul(Ptr dest, ConstPtr a, ConstPtr b);
 
 /// Smart pointer-like wrapper class for GMP/MPFR types
-class ApfpInterfaceWrapper {
-    ApfpInterfaceType data_;
+class Wrapper {
+    Value data_;
 
 public:
-    ~ApfpInterfaceWrapper();
+    ~Wrapper();
 
-    ApfpInterfaceWrapper();
+    Wrapper();
 
-    ApfpInterfaceWrapper(unsigned long precision);
+    Wrapper(unsigned long precision);
 
-    ApfpInterfaceWrapper(ApfpInterfaceWrapper&&);
+    Wrapper(Wrapper&&);
 
-    ApfpInterfaceWrapper(ApfpInterfaceWrapper&) = delete;
+    Wrapper(Wrapper&) = delete;
 
-    ApfpInterfaceWrapper& operator=(const ApfpInterfaceWrapper&) = delete;
+    Wrapper& operator=(const Wrapper&) = delete;
 
-    ApfpInterfaceWrapper& operator=(ApfpInterfaceWrapper&&);
+    Wrapper& operator=(Wrapper&&);
     
     // This decays to the pointer type
-    ApfpInterfaceTypePtr get() { return data_; }
+    Ptr get() { return data_; }
 
-    ApfpInterfaceTypeConstPtr get() const { return data_; }
+    ConstPtr get() const { return data_; }
 };
 
 }

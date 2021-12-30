@@ -67,14 +67,14 @@ class DeviceMatrix {
 
     /// Transfer from the host to the device
     /// TODO: Make this take input iterators
-    void TransferToDevice(ApfpInterfaceTypeConstPtr buffer_ptr, std::size_t buffer_size);
-    void TransferToDevice(const ApfpInterfaceWrapper* buffer_ptr, std::size_t buffer_size);
+    void TransferToDevice(interface::ConstPtr buffer_ptr, std::size_t buffer_size);
+    void TransferToDevice(const interface::Wrapper* buffer_ptr, std::size_t buffer_size);
 
 
     /// Transfer from the device to the host
     /// TODO: Make this take output iterators
-    void TransferToHost(ApfpInterfaceTypePtr buffer_ptr, std::size_t buffer_size);
-    void TransferToHost(ApfpInterfaceWrapper* buffer_ptr, std::size_t buffer_size);
+    void TransferToHost(interface::Ptr buffer_ptr, std::size_t buffer_size);
+    void TransferToHost(interface::Wrapper* buffer_ptr, std::size_t buffer_size);
 
    private:
     template<typename ptr_function_type>

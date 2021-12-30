@@ -121,11 +121,11 @@ void DeviceMatrix::TransferToDeviceImpl(ptr_function_type buffer_ptr_func, std::
                          reinterpret_cast<DramLine const*>(host_buffer.data()));
 }
 
-void DeviceMatrix::TransferToDevice(ApfpInterfaceTypeConstPtr buffer_ptr, std::size_t buffer_size) {
+void DeviceMatrix::TransferToDevice(interface::ConstPtr buffer_ptr, std::size_t buffer_size) {
     TransferToDeviceImpl([&](std::size_t i) { return buffer_ptr + i; }, buffer_size);
 }
 
-void DeviceMatrix::TransferToDevice(const ApfpInterfaceWrapper* buffer_ptr, std::size_t buffer_size) {
+void DeviceMatrix::TransferToDevice(const interface::Wrapper* buffer_ptr, std::size_t buffer_size) {
     TransferToDeviceImpl([&](std::size_t i) { return buffer_ptr[i].get(); }, buffer_size);
 }
 
@@ -148,18 +148,18 @@ void DeviceMatrix::TransferToHostImpl(ptr_function_type buffer_ptr_func, std::si
 
     buffer_.CopyToHost(0, kLinesPerNumber * host_buffer.size(), reinterpret_cast<DramLine*>(host_buffer.data()));
 
-    ApfpInterfaceWrapper scratch;
+    interface::Wrapper scratch;
     for(std::size_t i = 0; i < host_buffer.size(); ++i) {
         PackedFloatToInterfaceType(host_buffer[i], buffer_ptr_func(i));
     }
 }
 
-void DeviceMatrix::TransferToHost(ApfpInterfaceTypePtr buffer_ptr, std::size_t buffer_size) {
-    TransferToHostImpl([&](std::size_t i) -> ApfpInterfaceTypePtr { return buffer_ptr + i; }, buffer_size);
+void DeviceMatrix::TransferToHost(interface::Ptr buffer_ptr, std::size_t buffer_size) {
+    TransferToHostImpl([&](std::size_t i) -> interface::Ptr { return buffer_ptr + i; }, buffer_size);
 }
 
-void DeviceMatrix::TransferToHost(ApfpInterfaceWrapper* buffer_ptr, std::size_t buffer_size) {
-    TransferToHostImpl([&](std::size_t i) -> ApfpInterfaceTypePtr { return buffer_ptr[i].get(); }, buffer_size);
+void DeviceMatrix::TransferToHost(interface::Wrapper* buffer_ptr, std::size_t buffer_size) {
+    TransferToHostImpl([&](std::size_t i) -> interface::Ptr { return buffer_ptr[i].get(); }, buffer_size);
 }
 
 }

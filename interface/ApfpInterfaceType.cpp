@@ -1,8 +1,8 @@
 #include "ApfpInterfaceType.h"
 
-namespace apfp {
+namespace apfp::interface {
 
-void InitApfpInterfaceType(ApfpInterfaceTypePtr value) {
+void Init(Ptr value) {
 #ifdef APFP_GMP_INTERFACE_TYPE
     mpf_init(value);
 #else
@@ -10,7 +10,7 @@ void InitApfpInterfaceType(ApfpInterfaceTypePtr value) {
 #endif
 }
 
-void Init2ApfpInterfaceType(ApfpInterfaceTypePtr value, unsigned long precision) {
+void Init2(Ptr value, unsigned long precision) {
 #ifdef APFP_GMP_INTERFACE_TYPE
     mpf_init2(value, precision);
 #else
@@ -19,7 +19,7 @@ void Init2ApfpInterfaceType(ApfpInterfaceTypePtr value, unsigned long precision)
 #endif
 }
 
-void ClearApfpInterfaceType(ApfpInterfaceTypePtr value) {
+void Clear(Ptr value) {
 #ifdef APFP_GMP_INTERFACE_TYPE
     mpf_clear(value);
 #else
@@ -27,7 +27,7 @@ void ClearApfpInterfaceType(ApfpInterfaceTypePtr value) {
 #endif
 }
 
-void SwapApfpInterfaceType(ApfpInterfaceTypePtr a, ApfpInterfaceTypePtr b) {
+void Swap(Ptr a, Ptr b) {
 #ifdef APFP_GMP_INTERFACE_TYPE
     mpf_swap(a, b);
 #else
@@ -35,7 +35,7 @@ void SwapApfpInterfaceType(ApfpInterfaceTypePtr a, ApfpInterfaceTypePtr b) {
 #endif
 }
 
-void SetApfpInterfaceType(ApfpInterfaceTypePtr dest, ApfpInterfaceTypeConstPtr source) {
+void Set(Ptr dest, ConstPtr source) {
 #ifdef APFP_GMP_INTERFACE_TYPE
     mpf_set(dest, source);
 #else
@@ -43,7 +43,7 @@ void SetApfpInterfaceType(ApfpInterfaceTypePtr dest, ApfpInterfaceTypeConstPtr s
 #endif
 }
 
-void SetApfpInterfaceType(ApfpInterfaceTypePtr dest, long int source) {
+void Set(Ptr dest, long int source) {
 #ifdef APFP_GMP_INTERFACE_TYPE
     mpf_set_ui(dest, source);
 #else
@@ -51,7 +51,7 @@ void SetApfpInterfaceType(ApfpInterfaceTypePtr dest, long int source) {
 #endif
 }
 
-void AddApfpInterfaceType(ApfpInterfaceTypePtr dest, ApfpInterfaceTypeConstPtr a, ApfpInterfaceTypeConstPtr b) {
+void Add(Ptr dest, ConstPtr a, ConstPtr b) {
 #ifdef APFP_GMP_INTERFACE_TYPE
     mpf_add(dest, a, b);
 #else
@@ -59,7 +59,7 @@ void AddApfpInterfaceType(ApfpInterfaceTypePtr dest, ApfpInterfaceTypeConstPtr a
 #endif
 }
 
-void MulApfpInterfaceType(ApfpInterfaceTypePtr dest, ApfpInterfaceTypeConstPtr a, ApfpInterfaceTypeConstPtr b) {
+void Mul(Ptr dest, ConstPtr a, ConstPtr b) {
 #ifdef APFP_GMP_INTERFACE_TYPE
     mpf_mul(dest, a, b);
 #else
@@ -67,27 +67,27 @@ void MulApfpInterfaceType(ApfpInterfaceTypePtr dest, ApfpInterfaceTypeConstPtr a
 #endif
 }
 
-ApfpInterfaceWrapper::~ApfpInterfaceWrapper() {
-    ClearApfpInterfaceType(data_);
+Wrapper::~Wrapper() {
+    Clear(data_);
 }
 
-ApfpInterfaceWrapper::ApfpInterfaceWrapper() {
-    InitApfpInterfaceType(data_);
+Wrapper::Wrapper() {
+    Init(data_);
 }
 
-ApfpInterfaceWrapper::ApfpInterfaceWrapper(unsigned long precision) {
-    Init2ApfpInterfaceType(data_, precision);
+Wrapper::Wrapper(unsigned long precision) {
+    Init2(data_, precision);
 }
 
 
-ApfpInterfaceWrapper::ApfpInterfaceWrapper(ApfpInterfaceWrapper&& other) {
-    SwapApfpInterfaceType(data_, other.data_);
-    ClearApfpInterfaceType(other.data_);
+Wrapper::Wrapper(Wrapper&& other) {
+    Swap(data_, other.data_);
+    Clear(other.data_);
 }
 
-ApfpInterfaceWrapper& ApfpInterfaceWrapper::operator=(ApfpInterfaceWrapper&& other) {
-    SwapApfpInterfaceType(data_, other.data_);
-    ClearApfpInterfaceType(other.data_);
+Wrapper& Wrapper::operator=(Wrapper&& other) {
+    Swap(data_, other.data_);
+    Clear(other.data_);
     return *this;
 }
 

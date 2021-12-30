@@ -16,15 +16,15 @@ void ApfpSetup() {
 #else
     mpfr_set_default_prec(kMantissaBits);
 #endif
-    auto apfp_error_code = apfp::ApfpInit(kMantissaBits);
-    REQUIRE(apfp_error_code == apfp::ApfpBlasError::success);
+    auto apfp_error_code = apfp::Init(kMantissaBits);
+    REQUIRE(apfp_error_code == apfp::BlasError::success);
 }
 
 void ApfpTeardown() {
-    apfp::ApfpFinalize();
+    apfp::Finalize();
 }
 
-bool IsZero(apfp::ApfpInterfaceTypeConstPtr a) {
+bool IsZero(apfp::interface::ConstPtr a) {
 #ifdef APFP_GMP_INTERFACE_TYPE 
     return mpf_sgn(a) == 0;
 #else
@@ -32,13 +32,13 @@ bool IsZero(apfp::ApfpInterfaceTypeConstPtr a) {
 #endif
 }
 
-bool IsClose(apfp::ApfpInterfaceTypeConstPtr a, apfp::ApfpInterfaceTypeConstPtr b) {
+bool IsClose(apfp::interface::ConstPtr a, apfp::interface::ConstPtr b) {
     // Avoids divide by zero if a = b = 0
     if(IsZero(a) && IsZero(b)) {
         return true;
     }
 
-    apfp::ApfpInterfaceWrapper diff, sum, ratio;
+    apfp::interface::Wrapper diff, sum, ratio;
 #ifdef APFP_GMP_INTERFACE_TYPE
     mpf_sub(diff.get(), a, b);
     mpf_add(sum.get(), a, b);
@@ -76,51 +76,51 @@ TEST_CASE("SYRK") {
     // C is NxN
     // Matrices are stored column major because BLAS
     {
-        std::vector<apfp::ApfpInterfaceWrapper> a_matrix;
+        std::vector<apfp::interface::Wrapper> a_matrix;
         a_matrix.resize(N*K);
         for(auto& v : a_matrix) {
             rng.Generate(v.get());
         }
 
-        std::vector<apfp::ApfpInterfaceWrapper> c_matrix;
+        std::vector<apfp::interface::Wrapper> c_matrix;
         c_matrix.resize(N*N);
         for(auto& v : c_matrix) {
             rng.Generate(v.get());
         }
 
-        std::vector<apfp::ApfpInterfaceWrapper> ref_result;
+        std::vector<apfp::interface::Wrapper> ref_result;
         ref_result.resize(N*N);
 
         // Compute reference result
-        apfp::ApfpInterfaceWrapper prod_temp;
+        apfp::interface::Wrapper prod_temp;
         for(unsigned long j = 0; j < N; ++j) {
             // lower half
             for(unsigned long i = 0; i < N; ++i) {
                 auto r_idx = i + j*N;
-                apfp::SetApfpInterfaceType(ref_result.at(r_idx).get(), c_matrix.at(r_idx).get());
+                apfp::interface::Set(ref_result.at(r_idx).get(), c_matrix.at(r_idx).get());
                 
                 for(unsigned long k = 0; k < K; ++k) {
                     // A is NxK if N, KxN if T
                     if (mode == 'N') {
                         // (AB)_ij = sum_k A(i,k)B(k,j)
-                        apfp::MulApfpInterfaceType(prod_temp.get(), a_matrix.at(i + k*N).get(), a_matrix.at(j + k*N).get());
+                        apfp::interface::Mul(prod_temp.get(), a_matrix.at(i + k*N).get(), a_matrix.at(j + k*N).get());
                     } else {
                         // (AB)_ij = sum_k A(i,k) B(k,j)
-                        apfp::MulApfpInterfaceType(prod_temp.get(), a_matrix.at(k + i*K).get(), a_matrix.at(k + j*K).get());
+                        apfp::interface::Mul(prod_temp.get(), a_matrix.at(k + i*K).get(), a_matrix.at(k + j*K).get());
                     }
-                    apfp::AddApfpInterfaceType(ref_result.at(r_idx).get(), prod_temp.get(), ref_result.at(r_idx).get());
+                    apfp::interface::Add(ref_result.at(r_idx).get(), prod_temp.get(), ref_result.at(r_idx).get());
                 }
             }
         }
 
         // Use APFP BLAS library
-        auto error_code = apfp::ApfpSyrk(uplo_mode, mode, N, K, 
+        auto error_code = apfp::Syrk(uplo_mode, mode, N, K, 
             [&](unsigned long i) { return a_matrix.at(i).get(); }, mode == 'N' ? N : K,  
             [&](unsigned long i) { return c_matrix.at(i).get(); }, N);
-        REQUIRE(error_code == apfp::ApfpBlasError::success);
+        REQUIRE(error_code == apfp::BlasError::success);
 
         // Check all entries are sufficiently close
-        apfp::ApfpInterfaceWrapper diff;
+        apfp::interface::Wrapper diff;
         for(unsigned long j = 0; j < N; ++j) {
             // lower half
             for(unsigned long i = 0; i < j; ++i) {

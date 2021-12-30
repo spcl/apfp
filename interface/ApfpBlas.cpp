@@ -49,7 +49,7 @@ bool ApfpIsInitialized() {
     return apfp.has_value();
 }
 
-const char* ApfpErrorDescription() {
+const char* ErrorDescription() {
     return last_error_message.c_str();
 }
 

@@ -11,7 +11,7 @@ using ConstIndexFunction = std::function<interface::ConstPtr(unsigned long)>;
 
 /// Null terminated string describing the most recent library error if available
 /// Pointer is only guaranteed to live until the next library call
-const char* ApfpErrorDescription();
+const char* ErrorDescription();
 
 int Init(unsigned long precision);
 

@@ -351,7 +351,8 @@ Compute_TilesN:
                         // Ignore contributions from out-of-bound indices
                         const bool in_bounds = (n0 * kTileSizeN + n1 < size_n) && (m0 * kTileSizeM + m1 < size_m);
                         // Meat of the computation
-                        const auto res = in_bounds ? MultiplyAccumulate(a, b, c) : c;
+                        const auto res = MultiplyAccumulate(in_bounds ? a : PackedFloat::Zero(),
+                                                            in_bounds ? b : PackedFloat::Zero(), c);
                         // Write back to buffer
                         c_buffer[n1 * kTileSizeM + m1] = res;
                         c_out.Push(res);

@@ -149,6 +149,14 @@ class PackedFloat {
         return !(*this == rhs);
     }
 
+    static PackedFloat Zero() {
+        PackedFloat x;
+        x.exponent = 0;
+        x.sign = 0;
+        std::memset(x.mantissa, 0, kMantissaBytes);
+        return x;
+    }
+
     // Fields are left public
     Mantissa mantissa;
     Exponent exponent;

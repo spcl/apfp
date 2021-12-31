@@ -63,9 +63,9 @@ add_library(simulation ${APFP_KERNEL_FILES})
 target_compile_options(simulation PRIVATE -Wno-unknown-pragmas -DAP_INT_MAX_W=${APFP_MAX_BITS})
 target_link_libraries(simulation ${CMAKE_THREAD_LIBS_INIT})
 
-add_library(ApfpHostlib SHARED interface/Apfp.cpp interface/ApfpBlas.cpp interface/ApfpInterfaceType.cpp)
-target_link_libraries(ApfpHostlib ${Vitis_LIBRARIES} ${GMP_LIBRARIES}) 
-target_compile_definitions(ApfpHostlib PRIVATE HLSLIB_SIMULATE_OPENCL)
+add_library(apfpHostlib SHARED interface/Apfp.cpp interface/ApfpBlas.cpp interface/ApfpInterfaceType.cpp)
+target_link_libraries(apfpHostlib ${Vitis_LIBRARIES} ${GMP_LIBRARIES}) 
+target_compile_definitions(apfpHostlib PRIVATE HLSLIB_SIMULATE_OPENCL)
 
 # Executable used to run in simulation mode, calling the kernel as a C++ function directly
 add_executable(TestSimulation host/TestProgram.cpp)
@@ -81,13 +81,13 @@ enable_testing()
 add_test(TestSimulation TestSimulation 4 4 4)
 add_library(Catch host/Catch.cpp)
 add_executable(UnitTests host/UnitTests.cpp)
-target_link_libraries(UnitTests Catch ${GMP_LIBRARIES} ${MPFR_LIBRARIES} apfp ApfpHostlib simulation)
+target_link_libraries(UnitTests Catch ${GMP_LIBRARIES} ${MPFR_LIBRARIES} apfp apfpHostlib simulation)
 add_test(UnitTests UnitTests)
 
 add_executable(BlasUnitTests host/BlasUnitTests.cpp)
-target_link_libraries(BlasUnitTests Catch ${GMP_LIBRARIES} ${MPFR_LIBRARIES} apfp ApfpHostlib simulation)
+target_link_libraries(BlasUnitTests Catch ${GMP_LIBRARIES} ${MPFR_LIBRARIES} apfp apfpHostlib simulation)
 
-install(TARGETS ApfpHostlib)
+install(TARGETS apfpHostlib)
 install(FILES
     interface/Apfp.h
     interface/ApfpBlas.h

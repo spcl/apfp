@@ -28,9 +28,11 @@ auto _Karatsuba(ap_uint<bits> const &a, ap_uint<bits> const &b) ->
     // Compute |a_0 - a_1| and sign(a_0 - a_1)
     bool a0a1_is_neg = a0 < a1;
     Half a0a1 = a0a1_is_neg ? (a1 - a0) : (a0 - a1);
+#pragma HLS BIND_OP variable = a0a1 op = sub impl = fabric latency = AddLatency(bits / 2)
     // Compute |b_1 - b_0| and sign(b_1 - b_0)
     bool b0b1_is_neg = b1 < b0;
     Half b0b1 = b0b1_is_neg ? (b0 - b1) : (b1 - b0);
+#pragma HLS BIND_OP variable = b0b1 op = sub impl = fabric latency = AddLatency(bits / 2)
 
     // XOR the two signs to get the final sign
     bool a0a1b0b1_is_neg = a0a1_is_neg != b0b1_is_neg;

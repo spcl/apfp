@@ -10,6 +10,13 @@
 #include "MatrixMultiplicationReference.h"
 #include "Random.h"
 
+struct MpfrWrapper {
+    mpfr_t x;
+
+    operator mpfr_ptr() { return x; }
+    operator mpfr_srcptr() const { return x; }
+};
+
 #ifdef HLSLIB_SIMULATE_OPENCL
 bool RunTestSimulation(int size_n, int size_k, int size_m) {
     const std::string kernel_path("");
@@ -22,33 +29,36 @@ bool RunTest(std::string const &kernel_path, int size_n, int size_k, int size_m)
     std::cout << " Done.\n";
     // Initialize some random data
     std::cout << "Initializing input data..." << std::flush;
-    std::vector<__mpfr_struct> a_mpfr, b_mpfr, c_mpfr;
+    std::vector<MpfrWrapper> a_mpfr, b_mpfr, c_mpfr;
     RandomNumberGenerator rng;
     for (int n = 0; n < size_n; ++n) {
         for (int k = 0; k < size_k; ++k) {
-            a_mpfr.emplace_back(rng.GenerateMpfr());
+            a_mpfr.emplace_back();
+            rng.GenerateMpfr(a_mpfr.back());
         }
     }
     for (int k = 0; k < size_k; ++k) {
         for (int m = 0; m < size_m; ++m) {
-            b_mpfr.emplace_back(rng.GenerateMpfr());
+            b_mpfr.emplace_back();
+            rng.GenerateMpfr(b_mpfr.back());
         }
     }
     for (int n = 0; n < size_n; ++n) {
         for (int m = 0; m < size_m; ++m) {
-            c_mpfr.emplace_back(rng.GenerateMpfr());
+            c_mpfr.emplace_back();
+            rng.GenerateMpfr(c_mpfr.back());
         }
     }
     // Convert to PackedFloat format
     std::vector<PackedFloat> a_host, b_host, c_host;
     for (auto &x : a_mpfr) {
-        a_host.emplace_back(&x);
+        a_host.emplace_back(x);
     }
     for (auto &x : b_mpfr) {
-        b_host.emplace_back(&x);
+        b_host.emplace_back(x);
     }
     for (auto &x : c_mpfr) {
-        c_host.emplace_back(&x);
+        c_host.emplace_back(x);
     }
     std::cout << " Done.\n";
     // Allocate device memory, padding each buffer to the tile size
@@ -100,7 +110,7 @@ bool RunTest(std::string const &kernel_path, int size_n, int size_k, int size_m)
     for (int n = 0; n < size_n; ++n) {
         for (int m = 0; m < size_m; ++m) {
             const PackedFloat res = c_host[n * size_m + m];
-            const PackedFloat ref(&c_mpfr[n * size_m + m]);
+            const PackedFloat ref(c_mpfr[n * size_m + m]);
             if (ref != res) {
                 std::cerr << "Verification failed at (" << n << ", " << m << "):\n\t" << res << "\n\t" << ref << "\n";
                 return false;
@@ -112,17 +122,17 @@ bool RunTest(std::string const &kernel_path, int size_n, int size_k, int size_m)
     // Clean up
     for (int n = 0; n < size_n; ++n) {
         for (int k = 0; k < size_k; ++k) {
-            mpfr_clear(*reinterpret_cast<mpfr_t *>(&a_mpfr[n * size_k + k]));
+            mpfr_clear(a_mpfr[n * size_k + k]);
         }
     }
     for (int k = 0; k < size_k; ++k) {
         for (int m = 0; m < size_m; ++m) {
-            mpfr_clear(*reinterpret_cast<mpfr_t *>(&b_mpfr[k * size_m + m]));
+            mpfr_clear(b_mpfr[k * size_m + m]);
         }
     }
     for (int n = 0; n < size_n; ++n) {
         for (int m = 0; m < size_m; ++m) {
-            mpfr_clear(*reinterpret_cast<mpfr_t *>(&c_mpfr[n * size_m + m]));
+            mpfr_clear(c_mpfr[n * size_m + m]);
         }
     }
 

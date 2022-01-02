@@ -18,10 +18,12 @@ PackedFloat RandomNumberGenerator::Generate() {
 
 void RandomNumberGenerator::GenerateGmp(mpf_ptr num) {
     mpf_init2(num, kMantissaBits);
+    Generate(num);
 }
 
 void RandomNumberGenerator::GenerateMpfr(mpfr_ptr num) {
     mpfr_init2(num, kMantissaBits);
+    Generate(num);
 }
 
 void RandomNumberGenerator::Generate(mpfr_ptr num) {

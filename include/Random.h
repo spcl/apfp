@@ -20,13 +20,13 @@ class RandomNumberGenerator {
     PackedFloat Generate();
 
     /// Generate a random GMP number.
-    __mpf_struct GenerateGmp();
+    void GenerateGmp(mpf_ptr);
 
     /// Generate a random GMP number into the specified output variable.
     void Generate(mpf_ptr);
 
     /// Generate a random MPFR number.
-    __mpfr_struct GenerateMpfr();
+    void GenerateMpfr(mpfr_ptr);
 
     /// Generate a random MPFR into the specified output variable.
     void Generate(mpfr_ptr);

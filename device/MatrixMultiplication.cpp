@@ -271,8 +271,8 @@ DrainC_TilesN:
 }
 
 template <int lines_per_number>
-void WriteCInner(hlslib::Stream<PackedFloat> &from_kernel, DramLine *const mem, const int size_m, const int n0,
-                 const int m0, const int n1) {
+void WriteCInner(hlslib::Stream<PackedFloat> &from_kernel, DramLine *const mem, const int size_n, const int size_m,
+                 const int n0, const int m0, const int n1) {
 #pragma HLS INLINE
 WriteC_M:
     for (int m1 = 0; m1 < kTileSizeM; ++m1) {
@@ -285,22 +285,28 @@ WriteC_M:
             if (i == 0) {
                 *reinterpret_cast<PackedFloat *>(num) = from_kernel.Pop();
             }
-            mem[((n0 * kTileSizeN + n1) * size_m + m0 * kTileSizeM + m1) * kLinesPerNumber + i] = num[i];
+            const bool in_bounds = (n0 * kTileSizeN + n1 < size_n) && (m0 * kTileSizeM + m1 < size_m);
+            if (in_bounds) {
+                mem[((n0 * kTileSizeN + n1) * size_m + m0 * kTileSizeM + m1) * kLinesPerNumber + i] = num[i];
+            }
         }
     }
 }
 
 template <>
-void WriteCInner<1>(hlslib::Stream<PackedFloat> &from_kernel, DramLine *const mem, const int size_m, const int n0,
-                    const int m0, const int n1) {
+void WriteCInner<1>(hlslib::Stream<PackedFloat> &from_kernel, DramLine *const mem, const int size_n, const int size_m,
+                    const int n0, const int m0, const int n1) {
 #pragma HLS INLINE
 WriteC_M:
     for (int m1 = 0; m1 < kTileSizeM; ++m1) {
 #pragma HLS PIPELINE II = 1
 #pragma HLS LOOP_FLATTEN
         const auto num = from_kernel.Pop();
-        mem[((n0 * kTileSizeN + n1) * size_m + m0 * kTileSizeM + m1) * kLinesPerNumber] =
-            *reinterpret_cast<DramLine const *>(&num);
+        const bool in_bounds = (n0 * kTileSizeN + n1 < size_n) && (m0 * kTileSizeM + m1 < size_m);
+        if (in_bounds) {
+            mem[((n0 * kTileSizeN + n1) * size_m + m0 * kTileSizeM + m1) * kLinesPerNumber] =
+                *reinterpret_cast<DramLine const *>(&num);
+        }
     }
 }
 
@@ -313,7 +319,7 @@ WriteC_TilesN:
         for (int m0 = 0; m0 < tiles_m; ++m0) {
         WriteC_N:
             for (int n1 = 0; n1 < kTileSizeN; ++n1) {
-                WriteCInner<kLinesPerNumber>(from_kernel, mem, size_m, n0, m0, n1);
+                WriteCInner<kLinesPerNumber>(from_kernel, mem, size_n, size_m, n0, m0, n1);
             }
         }
     }
@@ -351,7 +357,8 @@ Compute_TilesN:
                         // Ignore contributions from out-of-bound indices
                         const bool in_bounds = (n0 * kTileSizeN + n1 < size_n) && (m0 * kTileSizeM + m1 < size_m);
                         // Meat of the computation
-                        const auto res = in_bounds ? MultiplyAccumulate(a, b, c) : c;
+                        const auto res = MultiplyAccumulate(in_bounds ? a : PackedFloat::Zero(),
+                                                            in_bounds ? b : PackedFloat::Zero(), c);
                         // Write back to buffer
                         c_buffer[n1 * kTileSizeM + m1] = res;
                         c_out.Push(res);

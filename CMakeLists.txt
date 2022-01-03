@@ -4,13 +4,15 @@ project(apfp)
 set(CMAKE_CXX_STANDARD 17)
 
 # Target options 
-set(APFP_PLATFORM "xilinx_u280_xdma_201920_3" CACHE STRING "Platform string for Vitis.")
+set(APFP_PLATFORM "xilinx_u250_gen3x16_xdma_3_1_202020_1" CACHE STRING "Platform string for Vitis.")
 set(APFP_BITS 1024 CACHE STRING "Number of bits to use for a floating point number, including mantissa, exponent, and sign.")
 set(APFP_MULT_BASE_BITS 18 CACHE STRING "Number of bits to bottom out the multiplication at and use native multiplication.")
 set(APFP_TILE_SIZE_N 32 CACHE STRING "Tile size in the N-dimension when running matrix-matrix multiplication.")
 set(APFP_TILE_SIZE_M 32 CACHE STRING "Tile size in the M-dimension when running matrix-matrix multiplication.")
 set(APFP_SEMANTICS "MPFR" CACHE STRING "Which semantics to use for floating point operations [GMP/MPFR].")
-set(APFP_PROFILING OFF CACHE BOOL "Enable profiling in the generated kernel.")
+set(APFP_DEBUGGING OFF CACHE BOOL "Enable debugging in generated kernels.")
+set(APFP_PROFILING OFF CACHE BOOL "Enable profiling in generated kernels.")
+set(APFP_SAVE_TEMPS OFF CACHE BOOL "Save temporary files from kernel builds.")
 set_property(CACHE APFP_SEMANTICS PROPERTY STRINGS GMP MPFR)
 set(APFP_INTERFACE_TYPE "MPFR" CACHE STRING "Which data types to use for the interface [GMP/MPFR].")
 set_property(CACHE APFP_INTERFACE_TYPE PROPERTY STRINGS GMP MPFR)
@@ -52,7 +54,10 @@ add_vitis_kernel(MatrixMultiplication FILES ${APFP_KERNEL_FILES}
                              m_axi_b:DDR[1]
                              m_axi_c_read:DDR[1]
                              m_axi_c_write:DDR[1])
-add_vitis_program(MatrixMultiplication ${APFP_PLATFORM} PROFILING ${APFP_PROFILING})
+add_vitis_program(MatrixMultiplication ${APFP_PLATFORM}
+                  PROFILING ${APFP_PROFILING}
+                  DEBUGGING ${APFP_DEBUGGING}
+                  SAVE_TEMPS ${APFP_SAVE_TEMPS})
 
 # Internal library 
 add_library(apfp host/Random.cpp host/MatrixMultiplicationReference.cpp)

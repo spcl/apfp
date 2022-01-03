@@ -67,7 +67,7 @@ class PackedFloat {
         sign = num->_mp_size < 0;  // 1 if negative, 0 otherwise
     }
 
-    inline PackedFloat(const mpfr_t num) {
+    inline PackedFloat(const mpfr_srcptr num) {
         // Copy the most significant bytes, padding zeros if necessary
         const auto mpfr_limbs = (mpfr_get_prec(num) + 8 * sizeof(mp_limb_t) - 1) / (8 * sizeof(mp_limb_t));
         const size_t mpfr_bytes = mpfr_limbs * sizeof(mp_limb_t);
@@ -104,7 +104,7 @@ class PackedFloat {
         }
     }
 
-    inline void ToMpfr(mpfr_t num) const {
+    inline void ToMpfr(mpfr_ptr num) const {
         // Copy the most significant bytes, padding zeros if necessary
         const auto mpfr_limbs = (mpfr_get_prec(num) + 8 * sizeof(mp_limb_t) - 1) / (8 * sizeof(mp_limb_t));
         const size_t mpfr_bytes = mpfr_limbs * sizeof(mp_limb_t);
@@ -147,6 +147,14 @@ class PackedFloat {
 
     inline bool operator!=(PackedFloat const &rhs) const {
         return !(*this == rhs);
+    }
+
+    static PackedFloat Zero() {
+        PackedFloat x;
+        x.exponent = 0;
+        x.sign = 0;
+        std::memset(x.mantissa, 0, kMantissaBytes);
+        return x;
     }
 
     // Fields are left public

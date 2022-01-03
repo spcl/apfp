@@ -34,8 +34,11 @@ PackedFloat Multiply(PackedFloat const &a, PackedFloat const &b) {
     const Exponent m_exponent = a.exponent + b.exponent - should_be_shifted;
 #endif
     // The sign is just the XOR of the existing signs
-    const bool m_sign = a.sign != b.sign;
-    return {m_sign, m_exponent, &m_mantissa};
+    PackedFloat result;
+    std::memcpy(result.mantissa, &m_mantissa, kMantissaBytes);
+    result.exponent = m_exponent;
+    result.sign = a.sign != b.sign;
+    return result;
 }
 
 PackedFloat Add(PackedFloat const &a, PackedFloat const &b) {
@@ -53,7 +56,7 @@ PackedFloat Add(PackedFloat const &a, PackedFloat const &b) {
     const Exponent shift_m = (a_is_larger && !a_is_zero) ? (a.exponent - b.exponent) : 0;
     // Optionally shift by 1, 2, 4, 8, 16... log2(B), such that all bits have eventually traveled to
     // their designated position.
-    const int kNumStages = hlslib::ConstLog2(kBits);
+    const int kNumStages = hlslib::ConstLog2(kMantissaBits);
 ShiftStages:
     for (int i = 0; i < kNumStages; ++i) {
 #pragma HLS UNROLL
@@ -61,10 +64,11 @@ ShiftStages:
         b_mantissa = ((shift_m & (1 << i)) == 0) ? b_mantissa : (b_mantissa >> (1 << i));
     }
     // Finally zero out the mantissas if they are shifted by more than the precision
-    a_mantissa = shift_c >= kBits ? decltype(a_mantissa)(0) : a_mantissa;
-    b_mantissa = shift_m >= kBits ? decltype(b_mantissa)(0) : b_mantissa;
+    a_mantissa = shift_c >= kMantissaBits ? decltype(a_mantissa)(0) : a_mantissa;
+    b_mantissa = shift_m >= kMantissaBits ? decltype(b_mantissa)(0) : b_mantissa;
     // Now we can add up the aligned mantissas
     const ap_uint<kMantissaBits + 1> _res_mantissa = a_mantissa + b_mantissa;
+#pragma HLS BIND_OP variable = _res_mantissa op = sub impl = fabric latency = 4
     // If the addition overflowed, we need to shift and increment the exponent
     const bool addition_overflowed = IsLastBitSet(_res_mantissa);
     ap_uint<kMantissaBits> res_mantissa = addition_overflowed ? (_res_mantissa >> 1) : _res_mantissa;

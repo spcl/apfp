@@ -121,15 +121,10 @@ class PackedFloat {
     inline std::string ToString() const {
         std::stringstream ss;
         ss << ((Sign() < 0) ? "-" : "+") << std::hex;
-        constexpr auto i_end = (kMantissaBytes + sizeof(Limb) + 1) / sizeof(Limb);
+        constexpr auto i_end = kMantissaBytes / sizeof(Limb);
+        static_assert(kMantissaBytes % sizeof(Limb) == 0);
         for (size_t i = 0; i < i_end; ++i) {
-            if (i < i_end - 1) {
-                ss << std::setfill('0') << std::setw(2 * sizeof(Limb)) << (*this)[i] << "|";
-            } else {
-                constexpr auto kLimbModulo = kMantissaBytes % sizeof(Limb);
-                ss << std::setfill('0') << std::setw(kLimbModulo > 0 ? (2 * kLimbModulo) : (2 * sizeof(Limb)))
-                   << (*this)[i];
-            }
+            ss << std::setfill('0') << std::setw(2 * sizeof(Limb)) << (*this)[i] << "|";
         }
         ss << "e" << std::dec << exponent;
         return ss.str();

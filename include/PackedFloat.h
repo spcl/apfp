@@ -69,13 +69,14 @@ class PackedFloat {
 
     inline PackedFloat(const mpfr_srcptr num) {
         // Should we just assume nan/inf can't appear?
-        if (mpfr_number_p(num)) {
+        if (mpfr_regular_p(num)) {
             // Copy the most significant bytes, padding zeros if necessary
             const auto mpfr_limbs = (mpfr_get_prec(num) + 8 * sizeof(mp_limb_t) - 1) / (8 * sizeof(mp_limb_t));
             const size_t mpfr_bytes = mpfr_limbs * sizeof(mp_limb_t);
             const size_t bytes_to_copy = std::min(mpfr_bytes, size_t(kMantissaBytes));
             const size_t copy_from = mpfr_bytes - bytes_to_copy;
             const size_t copy_to = kMantissaBytes - bytes_to_copy;
+            // Doesn't this copy to the LSB of the mantissa?
             std::memset(mantissa, 0x0, copy_to);
             std::memcpy(mantissa + copy_to, reinterpret_cast<uint8_t const *>(num->_mpfr_d) + copy_from, bytes_to_copy);
             // Section 5.16 of the MPFR manual suggests the exponent might take on special values

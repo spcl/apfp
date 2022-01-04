@@ -37,7 +37,7 @@ int Finalize() {
     return BlasError::success;
 }
 
-bool ApfpIsInitialized() {
+bool IsInitialized() {
     return apfp.has_value();
 }
 

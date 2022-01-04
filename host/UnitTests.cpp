@@ -215,6 +215,7 @@ TEST_CASE("Add MPFR") {
         rng.Generate(mpfr_num_a);
         rng.Generate(mpfr_num_b);
         mpfr_add(mpfr_num_c, mpfr_num_a, mpfr_num_b, kRoundingMode);
+        CAPTURE(PackedFloat(mpfr_num_a), PackedFloat(mpfr_num_b));
         REQUIRE(PackedFloat(mpfr_num_c) == Add(PackedFloat(mpfr_num_a), PackedFloat(mpfr_num_b)));
     }
     // Accumulate
@@ -242,6 +243,7 @@ TEST_CASE("Multiply MPFR") {
         rng.Generate(mpfr_num_a);
         rng.Generate(mpfr_num_b);
         mpfr_mul(mpfr_num_c, mpfr_num_a, mpfr_num_b, kRoundingMode);
+        CAPTURE(PackedFloat(mpfr_num_a), PackedFloat(mpfr_num_b));
         REQUIRE(PackedFloat(mpfr_num_c) == Multiply(PackedFloat(mpfr_num_a), PackedFloat(mpfr_num_b)));
     }
     mpfr_set_si(mpfr_num_c, 0, kRoundingMode);
@@ -254,6 +256,7 @@ TEST_CASE("Multiply MPFR") {
             num = PackedFloat(mpfr_num_c);
         }
         mpfr_mul(mpfr_num_c, mpfr_num_a, mpfr_num_c, kRoundingMode);
+        CAPTURE(PackedFloat(num), PackedFloat(mpfr_num_a));
         num = Multiply(num, PackedFloat(mpfr_num_a));
         REQUIRE(PackedFloat(mpfr_num_c) == num);
     }
@@ -275,6 +278,7 @@ TEST_CASE("MultiplyAccumulate MPFR") {
         rng.Generate(mpfr_num_c);
         mpfr_mul(mpfr_num_tmp, mpfr_num_a, mpfr_num_b, kRoundingMode);
         mpfr_add(mpfr_num_tmp, mpfr_num_c, mpfr_num_tmp, kRoundingMode);
+        CAPTURE(PackedFloat(mpfr_num_a), PackedFloat(mpfr_num_b), PackedFloat(mpfr_num_c));
         REQUIRE(PackedFloat(mpfr_num_tmp) ==
                 MultiplyAccumulate(PackedFloat(mpfr_num_a), PackedFloat(mpfr_num_b), PackedFloat(mpfr_num_c)));
     }

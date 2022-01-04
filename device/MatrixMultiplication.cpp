@@ -36,7 +36,7 @@ ReadA_N:
 #pragma HLS PIPELINE II = 1
 #pragma HLS LOOP_FLATTEN
         DramLine num[1];
-        num[0] = mem[((n0 * kTileSizeN + n1) * size_k + k) * kLinesPerNumber];
+        num[0] = mem[(n0 * kTileSizeN + n1) * size_k + k];
         a_to_feeder.Push(PackedFloat(num));
     }
 }
@@ -117,7 +117,7 @@ ReadB_M:
 #pragma HLS PIPELINE II = 1
 #pragma HLS LOOP_FLATTEN
         DramLine num[1];
-        num[0] = mem[(k * size_m + m0 * kTileSizeM + m1) * kLinesPerNumber];
+        num[0] = mem[k * size_m + m0 * kTileSizeM + m1];
         b_to_feeder.Push(PackedFloat(num));
     }
 }
@@ -196,7 +196,7 @@ ReadC_M:
 #pragma HLS PIPELINE II = 1
 #pragma HLS LOOP_FLATTEN
         DramLine num[1];
-        num[0] = mem[((n0 * kTileSizeN + n1) * size_m + m0 * kTileSizeM + m1) * kLinesPerNumber];
+        num[0] = mem[(n0 * kTileSizeN + n1) * size_m + m0 * kTileSizeM + m1];
         c_to_feeder.Push(PackedFloat(num));
     }
 }
@@ -286,7 +286,7 @@ WriteC_M:
 #pragma HLS PIPELINE II = 1
 #pragma HLS LOOP_FLATTEN
             if (i == 0) {
-                from_kernel.Pop() >> num;
+                from_kernel.Pop().UnpackFlits(num);
             }
             const bool in_bounds = (n0 * kTileSizeN + n1 < size_n) && (m0 * kTileSizeM + m1 < size_m);
             if (in_bounds) {
@@ -304,10 +304,11 @@ WriteC_M:
     for (int m1 = 0; m1 < kTileSizeM; ++m1) {
 #pragma HLS PIPELINE II = 1
 #pragma HLS LOOP_FLATTEN
-        const auto num = from_kernel.Pop();
+        DramLine num[1];
+        from_kernel.Pop().UnpackFlits(num);
         const bool in_bounds = (n0 * kTileSizeN + n1 < size_n) && (m0 * kTileSizeM + m1 < size_m);
         if (in_bounds) {
-            num >> &mem[((n0 * kTileSizeN + n1) * size_m + m0 * kTileSizeM + m1) * kLinesPerNumber];
+            mem[(n0 * kTileSizeN + n1) * size_m + m0 * kTileSizeM + m1] = num[0];
         }
     }
 }

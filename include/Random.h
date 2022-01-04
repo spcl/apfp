@@ -38,6 +38,7 @@ class RandomNumberGenerator {
     std::poisson_distribution<> exp_distr_;
     std::uniform_real_distribution<> u01_distr_;
     static constexpr double zero_frac_ = 1.0/100.0;
+    static constexpr double one_frac_ = 1.0/100.0;
 
     gmp_randstate_t state_;
     std::mutex mutex_;

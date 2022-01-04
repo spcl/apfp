@@ -9,7 +9,7 @@
 #include "PackedFloat.h"
 #include "Random.h"
 
-constexpr auto kNumRandom = 512;
+constexpr auto kNumRandom = 16384;
 
 TEST_CASE("PackedFloat to/from GMP Conversion") {
     // Simple example

@@ -36,6 +36,8 @@ class RandomNumberGenerator {
     std::mt19937_64 small_rng_;
     static constexpr double neg_frac_ = 1.0/3.0;
     std::poisson_distribution<> exp_distr_;
+    std::uniform_real_distribution<> u01_distr_;
+    static constexpr double zero_frac_ = 1.0/100.0;
 
     gmp_randstate_t state_;
     std::mutex mutex_;

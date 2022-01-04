@@ -32,11 +32,16 @@ void RandomNumberGenerator::Generate(mpfr_ptr num) {
     mpfr_urandom(num, state_, kRoundingMode);
 
     // randomly flip sign bit
-    mpfr_setsign(num, num, (small_rng_() < neg_frac_ ? 1 : 0), kRoundingMode);
+    mpfr_setsign(num, num, (u01_distr_(small_rng_) < neg_frac_ ? 1 : 0), kRoundingMode);
     
     // Set exponent
     auto exp = exp_distr_(small_rng_);
+    assert(exp >= 0);
     mpfr_set_exp(num, exp);
+
+    if(u01_distr_(small_rng_) < zero_frac_) {
+        mpfr_set_ui(num, 0, kRoundingMode);
+    }
 }
 
 void RandomNumberGenerator::Generate(mpf_ptr num) {

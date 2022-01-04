@@ -55,58 +55,52 @@ PackedFloat Multiply(PackedFloat const &a, PackedFloat const &b) {
 
 // Does this correctly output the result if a and b are different signs?
 // The mantissa of the result should depend on the sign bits of a and b
-PackedFloat Add(PackedFloat const &a, PackedFloat const &b) {
+PackedFloat Add(PackedFloat const &a_in, PackedFloat const &b_in) {
 #pragma HLS INLINE
 
-    // Figure out how much we need to shift by
-    ap_uint<kMantissaBits> a_mantissa(a.GetMantissa());
-    ap_uint<kMantissaBits> b_mantissa(b.GetMantissa());
+    const bool exp_are_equal = (a_in.GetExponent() == b_in.GetExponent());
+    const bool a_in_exp_is_larger = (a_in.GetExponent() > b_in.GetExponent());
+    const bool a_in_mant_is_zero = a_in.GetMantissa() == 0;
+    const bool b_in_mant_is_zero = b_in.GetMantissa() == 0;
+    // a mantissa is not zero AND (a exponent is larger OR (the exponents are equal AND the a mantissa equal or bigger))
+    const bool a_is_larger = (!a_in_mant_is_zero) && (a_in_exp_is_larger || (exp_are_equal && a_in.GetMantissa() >= b_in.GetMantissa()));
+    
+    // We always have a >= b to simplify the code
+    // a is zero iff b is zero
+    const PackedFloat a = a_is_larger ? a_in : b_in;
+    const PackedFloat b = a_is_larger ? b_in : a_in;
+    const bool a_is_zero = a_is_larger ? a_in_mant_is_zero : b_in_mant_is_zero;
+
+    const ap_uint<kMantissaBits> a_mantissa(a.GetMantissa());
+    const ap_uint<kMantissaBits> b_mantissa(b.GetMantissa());
 
 #ifndef HLSLIB_SYNTHESIS
     // We better not be getting subnormal inputs
     assert(a.IsZero() || IsMostSignificantBitSet(a_mantissa));
     assert(a.IsZero() || IsMostSignificantBitSet(b_mantissa));
 #endif
-
-    const bool exp_are_equal = (a.GetExponent() == b.GetExponent());
-    const bool a_exp_is_larger = (a.GetExponent() > b.GetExponent());
-    const bool a_mant_is_zero = a_mantissa == 0;
-    const bool b_mant_is_zero = b_mantissa == 0;
-    const bool a_is_larger = (!a_mant_is_zero) && (a_exp_is_larger || (exp_are_equal && a.GetMantissa() > b.GetMantissa()));
+    
     const bool subtraction = a.GetSign() != b.GetSign();
-    Exponent res_exponent = ((a_exp_is_larger && !a_mant_is_zero) || b_mant_is_zero) ? a.GetExponent() : b.GetExponent();
-    const Exponent shift_c = (!a_exp_is_larger && !b_mant_is_zero) ? (b.GetExponent() - a.GetExponent()) : 0;
-    const Exponent shift_m = (a_exp_is_larger && !a_mant_is_zero) ? (a.GetExponent() - b.GetExponent()) : 0;
+    Exponent res_exponent = a.GetExponent();
+    const Exponent shift_m = a.GetExponent() - b.GetExponent();
 
-#ifndef HLSLIB_SYNTHESIS
-    // Turns out Xilinx allows signed shifts!
-    assert(shift_m >= 0);
-    assert(shift_c >= 0);
-#endif
-
-    // Optionally shift right by 1, 2, 4, 8, 16... log2(B), such that all bits have eventually traveled to
-    // their designated position.
-    // This is unsigned
+    // Figure out how much we need to shift by
     // Xilinx permits signed shifts
-    // We want to keep an extra bit of precision to properly round the outupt
-    auto a_mantissa_wide = static_cast<ap_uint<kMantissaBits+1>>(a_mantissa) >> (shift_c - 1);
-    auto b_mantissa_wide = static_cast<ap_uint<kMantissaBits+1>>(b_mantissa) >> (shift_m - 1);
+    // We want to keep an extra bit of precision to properly round the output
+    auto a_mantissa_shifted = static_cast<ap_uint<kMantissaBits+1>>(a_mantissa) >> (      0 - 1);
+    auto b_mantissa_shifted = static_cast<ap_uint<kMantissaBits+1>>(b_mantissa) >> (shift_m - 1);
 
-    // proper rounding
-    auto carry_in = ap_uint<1>(a_mantissa_wide.bit(0) ^ b_mantissa_wide.bit(0));
-    a_mantissa = a_mantissa_wide.range(kMantissaBits, 1);
-    b_mantissa = b_mantissa_wide.range(kMantissaBits, 1);
     // Now we can add up the aligned mantissas
     // ==== Add/Sub mantissas and overflow check ====
-    const ap_uint<kMantissaBits + 1> ab_sum = carry_in + a_mantissa + b_mantissa;
-#pragma HLS BIND_OP variable = ab_sum op = add impl = fabric latency = 4
+    // Truncate the last bit (round towards zero)
+    const ap_uint<kMantissaBits + 1> ab_sum = (a_mantissa_shifted + b_mantissa_shifted) >> 1;
+#pragma HLS BIND_OP variable = ab_sum op = add impl = fabric latency = 4'
+
     // This returns an ap_int but the answer is always positive so the MSB is never set
     // Xilinx manual states signed <-> unsigned ignores the sign and converts bit for bit
-    // Widening assignments of int are sign extended so we specify the casting route
-
-    ap_uint<kMantissaBits + 1> larger_mantissa = a_is_larger ? a_mantissa : b_mantissa;
-    ap_uint<kMantissaBits + 1> smaller_mantissa = a_is_larger ? b_mantissa : a_mantissa;
-    const ap_uint<kMantissaBits + 1> ab_abs_diff = static_cast<ap_uint<kMantissaBits+2>>(larger_mantissa - smaller_mantissa);
+    // Widening assignments of ap_int are sign extended so we specify the casting route
+    assert(a_mantissa_shifted >= b_mantissa_shifted);
+    const ap_uint<kMantissaBits + 1> ab_abs_diff = static_cast<ap_uint<kMantissaBits+2>>(a_mantissa_shifted - b_mantissa_shifted) >> 1;
 #pragma HLS BIND_OP variable = ab_abs_diff op = sub impl = fabric latency = 4
 
     const ap_uint<kMantissaBits + 1> _res_mantissa = subtraction ? ab_abs_diff : ab_sum;
@@ -144,9 +138,9 @@ PackedFloat Add(PackedFloat const &a, PackedFloat const &b) {
     result.SetMantissa(res_mantissa);
     result.SetExponent(res_exponent);
     // Sign will be the same as whatever is the largest number
-    result.SetSign(a_is_larger ? a.GetSign() : b.GetSign());
+    result.SetSign(a.GetSign());
 
-    return result;
+    return a_is_zero ? PackedFloat::Zero() : result;
 }
 
 PackedFloat MultiplyAccumulate(PackedFloat const &a, PackedFloat const &b, PackedFloat const &c) {

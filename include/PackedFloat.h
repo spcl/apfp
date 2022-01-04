@@ -117,8 +117,7 @@ class PackedFloat {
         // [Section 5.16 of the MPFR manual]
         mpfr_set_ui(num, 1, kRoundingMode);
         // Scan mantissa to check if it's zero since MPFR has a special zero value
-        auto mantissa_zero = std::all_of(std::begin(mantissa), std::end(mantissa), [](auto x) { return x == 0; });
-        if (mantissa_zero) {
+        if (IsZero()) {
             mpfr_set_ui(num, 0, kRoundingMode);
         } else {
             // Copy the most significant bytes, padding zeros if necessary
@@ -158,6 +157,7 @@ class PackedFloat {
         return ss.str();
     }
 
+
     inline bool operator==(PackedFloat const &rhs) const {
         if ((sign == 0) != (rhs.sign == 0)) {
             return false;
@@ -170,6 +170,19 @@ class PackedFloat {
 
     inline bool operator!=(PackedFloat const &rhs) const {
         return !(*this == rhs);
+    }
+
+    /// Slightly looser comparison where zero values are allowed to differ in the sign and exponent
+    inline bool EquivCompare(PackedFloat const &rhs) {
+        if(IsZero() && rhs.IsZero()) {
+            return true;
+        } else {
+            return *this == rhs;
+        }
+    }
+
+    inline bool IsZero() const {
+        return std::all_of(std::begin(mantissa), std::end(mantissa), [](auto x) { return x == 0; });
     }
 
     static PackedFloat Zero() {

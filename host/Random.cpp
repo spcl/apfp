@@ -35,8 +35,10 @@ void RandomNumberGenerator::Generate(mpfr_ptr num) {
     mpfr_setsign(num, num, (u01_distr_(small_rng_) < neg_frac_ ? 1 : 0), kRoundingMode);
     
     // Set exponent
-    auto exp = exp_distr_(small_rng_);
-    assert(exp >= 0);
+    int exp = exp_distr_(small_rng_);
+    if (u01_distr_(small_rng_) < 0.5) {
+        exp = -exp;
+    }
     mpfr_set_exp(num, exp);
 
     if(u01_distr_(small_rng_) < zero_frac_) {

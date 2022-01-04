@@ -68,16 +68,23 @@ class PackedFloat {
     }
 
     inline PackedFloat(const mpfr_srcptr num) {
-        // Copy the most significant bytes, padding zeros if necessary
-        const auto mpfr_limbs = (mpfr_get_prec(num) + 8 * sizeof(mp_limb_t) - 1) / (8 * sizeof(mp_limb_t));
-        const size_t mpfr_bytes = mpfr_limbs * sizeof(mp_limb_t);
-        const size_t bytes_to_copy = std::min(mpfr_bytes, size_t(kMantissaBytes));
-        const size_t copy_from = mpfr_bytes - bytes_to_copy;
-        const size_t copy_to = kMantissaBytes - bytes_to_copy;
-        std::memset(mantissa, 0x0, copy_to);
-        std::memcpy(mantissa + copy_to, reinterpret_cast<uint8_t const *>(num->_mpfr_d) + copy_from, bytes_to_copy);
-        exponent = num->_mpfr_exp;
-        sign = num->_mpfr_sign < 0;  // 1 if negative, 0 otherwise
+        // Should we just assume nan/inf can't appear?
+        if (mpfr_number_p(num)) {
+            // Copy the most significant bytes, padding zeros if necessary
+            const auto mpfr_limbs = (mpfr_get_prec(num) + 8 * sizeof(mp_limb_t) - 1) / (8 * sizeof(mp_limb_t));
+            const size_t mpfr_bytes = mpfr_limbs * sizeof(mp_limb_t);
+            const size_t bytes_to_copy = std::min(mpfr_bytes, size_t(kMantissaBytes));
+            const size_t copy_from = mpfr_bytes - bytes_to_copy;
+            const size_t copy_to = kMantissaBytes - bytes_to_copy;
+            std::memset(mantissa, 0x0, copy_to);
+            std::memcpy(mantissa + copy_to, reinterpret_cast<uint8_t const *>(num->_mpfr_d) + copy_from, bytes_to_copy);
+            // Section 5.16 of the MPFR manual suggests the exponent might take on special values
+            exponent = mpfr_get_exp(num);
+            sign = mpfr_signbit(num) ? 1 : 0;  // 1 if negative, 0 otherwise
+        } else {
+            std::cout << "Returning zero on " << mpfr_get_d(num, kRoundingMode) << std::endl;
+            *this = PackedFloat::Zero();
+        }
     }
 
     inline PackedFloat &operator=(mpf_srcptr num) {
@@ -105,16 +112,32 @@ class PackedFloat {
     }
 
     inline void ToMpfr(mpfr_ptr num) const {
-        // Copy the most significant bytes, padding zeros if necessary
-        const auto mpfr_limbs = (mpfr_get_prec(num) + 8 * sizeof(mp_limb_t) - 1) / (8 * sizeof(mp_limb_t));
-        const size_t mpfr_bytes = mpfr_limbs * sizeof(mp_limb_t);
-        const size_t bytes_to_copy = std::min(mpfr_bytes, size_t(kMantissaBytes));
-        const auto copy_to = mpfr_bytes - bytes_to_copy;
-        const auto copy_from = kMantissaBytes - bytes_to_copy;
-        std::memset(num->_mpfr_d, 0x0, copy_to);
-        std::memcpy(reinterpret_cast<uint8_t *>(num->_mpfr_d) + copy_to, mantissa + copy_from, bytes_to_copy);
-        num->_mpfr_exp = exponent;
-        num->_mpfr_sign = sign ? mpfr_sign_t(-1) : mpfr_sign_t(1);  // 1 if negative, 0 otherwise
+        // Initialize to 1
+        // Otherwise set_exp explodes when it sees num has the special exponent
+        // [Section 5.16 of the MPFR manual]
+        mpfr_set_ui(num, 1, kRoundingMode);
+        // Scan mantissa to check if it's zero since MPFR has a special zero value
+        auto mantissa_zero = std::all_of(std::begin(mantissa), std::end(mantissa), [](auto x) { return x == 0; });
+        if (mantissa_zero) {
+            mpfr_set_ui(num, 0, kRoundingMode);
+        } else {
+            // Copy the most significant bytes, padding zeros if necessary
+            const auto mpfr_limbs = (mpfr_get_prec(num) + 8 * sizeof(mp_limb_t) - 1) / (8 * sizeof(mp_limb_t));
+            const size_t mpfr_bytes = mpfr_limbs * sizeof(mp_limb_t);
+            const size_t bytes_to_copy = std::min(mpfr_bytes, size_t(kMantissaBytes));
+            const auto copy_to = mpfr_bytes - bytes_to_copy;
+            const auto copy_from = kMantissaBytes - bytes_to_copy;
+            std::memset(num->_mpfr_d, 0x0, copy_to);
+            std::memcpy(reinterpret_cast<uint8_t *>(num->_mpfr_d) + copy_to, mantissa + copy_from, bytes_to_copy);
+            // Returns nonzero is exponent is not in range
+            if (mpfr_set_exp(num, exponent)) {
+                // The only way this can happen is if we hit the magic exponent for NaN/Zero/Inf
+                // So flush to zero for now
+                mpfr_set_ui(num, 0, kRoundingMode);
+            }
+            // 1 if negative, 0 otherwise
+            mpfr_setsign(num, num, sign, kRoundingMode);
+        }
     }
 #endif  // End interoperability with GMP
 

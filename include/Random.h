@@ -1,6 +1,7 @@
 #include <gmp.h>
 
 #include <mutex>
+#include <random>
 
 #include "Config.h"
 #include "PackedFloat.h"
@@ -32,6 +33,10 @@ class RandomNumberGenerator {
     void Generate(mpfr_ptr);
 
    private:
+    std::mt19937_64 small_rng_;
+    static constexpr double neg_frac_ = 1.0/3.0;
+    std::poisson_distribution<> exp_distr_;
+
     gmp_randstate_t state_;
     std::mutex mutex_;
 };

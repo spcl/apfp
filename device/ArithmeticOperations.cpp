@@ -11,7 +11,7 @@ inline bool IsLastBitSet(ap_uint<bits> const &num) {
     return num(bits - 1, bits - 1) == 1;
 }
 
-DeviceFloat Multiply(DeviceFloat const &a, DeviceFloat const &b) {
+PackedFloat Multiply(PackedFloat const &a, PackedFloat const &b) {
 #pragma HLS INLINE
     // Pad mantissas to avoid passing awkward sizes to Karatsuba
     const ap_uint<kBits> a_mantissa_padded(a.GetMantissa());
@@ -34,14 +34,14 @@ DeviceFloat Multiply(DeviceFloat const &a, DeviceFloat const &b) {
     const Exponent m_exponent = a.GetExponent() + b.GetExponent() - should_be_shifted;
 #endif
     // The sign is just the XOR of the existing signs
-    DeviceFloat result;
+    PackedFloat result;
     result.SetMantissa(m_mantissa);
     result.SetExponent(m_exponent);
     result.SetSign(a.GetSign() != b.GetSign());
     return result;
 }
 
-DeviceFloat Add(DeviceFloat const &a, DeviceFloat const &b) {
+PackedFloat Add(PackedFloat const &a, PackedFloat const &b) {
 #pragma HLS INLINE
 
     // Figure out how much we need to shift by
@@ -72,7 +72,7 @@ ShiftStages:
     // If the addition overflowed, we need to shift and increment the exponent
     const bool addition_overflowed = IsLastBitSet(_res_mantissa);
     ap_uint<kMantissaBits> res_mantissa = addition_overflowed ? (_res_mantissa >> 1) : _res_mantissa;
-    DeviceFloat result;
+    PackedFloat result;
     result.SetMantissa(res_mantissa);
     result.SetExponent(res_exponent + addition_overflowed);
     // Sign will be the same as whatever is the largest number
@@ -81,25 +81,7 @@ ShiftStages:
     return result;
 }
 
-DeviceFloat MultiplyAccumulate(DeviceFloat const &a, DeviceFloat const &b, DeviceFloat const &c) {
+PackedFloat MultiplyAccumulate(PackedFloat const &a, PackedFloat const &b, PackedFloat const &c) {
 #pragma HLS INLINE
     return Add(c, Multiply(a, b));
-}
-
-PackedFloat Add(PackedFloat const &a, PackedFloat const &b) {
-    const auto result = Add(*reinterpret_cast<DeviceFloat const *>(&a), *reinterpret_cast<DeviceFloat const *>(&b));
-    return *reinterpret_cast<PackedFloat const *>(&result);
-}
-
-PackedFloat Multiply(PackedFloat const &a, PackedFloat const &b) {
-    const auto result =
-        Multiply(*reinterpret_cast<DeviceFloat const *>(&a), *reinterpret_cast<DeviceFloat const *>(&b));
-    return *reinterpret_cast<PackedFloat const *>(&result);
-}
-
-PackedFloat MultiplyAccumulate(PackedFloat const &a, PackedFloat const &b, PackedFloat const &c) {
-    const auto result =
-        MultiplyAccumulate(*reinterpret_cast<DeviceFloat const *>(&a), *reinterpret_cast<DeviceFloat const *>(&b),
-                           *reinterpret_cast<DeviceFloat const *>(&c));
-    return *reinterpret_cast<PackedFloat const *>(&result);
 }

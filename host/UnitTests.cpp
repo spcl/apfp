@@ -22,11 +22,11 @@ TEST_CASE("PackedFloat to/from GMP Conversion") {
         REQUIRE(gmp_num->_mp_size == -1);
         REQUIRE(gmp_num->_mp_d[0] == 42);
         PackedFloat num(gmp_num);
-        REQUIRE(num.sign == 1);
-        REQUIRE(num.exponent == 1);
-        REQUIRE(num.mantissa[0] == 42);
-        for (int i = 1; i < kMantissaBytes; ++i) {
-            REQUIRE(num.mantissa[i] == 0);
+        REQUIRE(num.GetSign() == 1);
+        REQUIRE(num.GetExponent() == 1);
+        REQUIRE(num.GetLimb(0) == 42);
+        for (size_t i = 1; i < kMantissaBytes / sizeof(Limb); ++i) {
+            REQUIRE(num.GetLimb(i) == 0);
         }
         num.ToGmp(gmp_num);
         REQUIRE(gmp_num->_mp_exp == 1);
@@ -67,7 +67,7 @@ TEST_CASE("PackedFloat to/from MPFR Conversion") {
         REQUIRE(mpfr_get_prec(mpfr_num_a) >= mpfr_prec_t(8 * sizeof(Mantissa)));
         mpfr_set_si(mpfr_num_a, -42, kRoundingMode);
         PackedFloat num(mpfr_num_a);
-        REQUIRE(num.sign == 1);
+        REQUIRE(num.GetSign() == 1);
         num.ToMpfr(mpfr_num_b);
         REQUIRE(mpfr_num_a->_mpfr_exp == mpfr_num_a->_mpfr_exp);
         REQUIRE(mpfr_num_a->_mpfr_sign == mpfr_num_a->_mpfr_sign);
@@ -92,13 +92,6 @@ TEST_CASE("PackedFloat to/from MPFR Conversion") {
             REQUIRE(std::memcmp(reinterpret_cast<uint8_t const *>(mpfr_num_a->_mpfr_d) + offset, mpfr_num_b->_mpfr_d,
                                 std::min(mpfr_bytes, kMantissaBytes)) == 0);
             REQUIRE(PackedFloat(mpfr_num_b) == num);
-            // Verify that DeviceFloat correctly represents PackedFloat
-            DeviceFloat device_float;
-            static_assert(sizeof(DeviceFloat) == sizeof(PackedFloat),
-                          "PackedFloat and DeviceFloat must have the same size.");
-            device_float = *reinterpret_cast<DeviceFloat const *>(&num);
-            REQUIRE(device_float.GetSign() == num.sign);
-            REQUIRE(device_float.GetExponent() == num.exponent);
         }
     }
 }
@@ -139,11 +132,8 @@ TEST_CASE("Karatsuba") {
         for (int i = 0; i < kNumRandom; ++i) {
             const auto _a = rng.Generate();
             const auto _b = rng.Generate();
-            ap_uint<kMantissaBits> a, b;
-            for (int j = 0; j < kMantissaBytes; ++j) {
-                a.range((j + 1) * 8 - 1, j * 8) = _a.mantissa[j];
-                b.range((j + 1) * 8 - 1, j * 8) = _b.mantissa[j];
-            }
+            const ap_uint<kMantissaBits> a = _a.GetMantissa();
+            const ap_uint<kMantissaBits> b = _b.GetMantissa();
             REQUIRE(MultOverflow(a, b) == Karatsuba(a, b));
         }
     }
@@ -256,7 +246,7 @@ TEST_CASE("Multiply MPFR") {
     for (int i = 0; i < kNumRandom; ++i) {
         rng.Generate(mpfr_num_a);
         // Don't handle overflows
-        if (std::abs(num.exponent) >= std::sqrt(std::numeric_limits<mpfr_exp_t>::max())) {
+        if (std::abs(num.GetExponent()) >= std::sqrt(std::numeric_limits<mpfr_exp_t>::max())) {
             rng.Generate(mpfr_num_c);
             num = PackedFloat(mpfr_num_c);
         }

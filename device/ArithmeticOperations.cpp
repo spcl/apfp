@@ -15,8 +15,8 @@ template <int bits>
 inline int CountLeadingZeros(ap_uint<bits> const &num) {
 #pragma HLS INLINE
     int leading_zeros = 0;
-    for(leading_zeros = 0; leading_zeros < bits; ++leading_zeros) {
-        if(num.test(bits - (leading_zeros + 1))) {
+    for (leading_zeros = 0; leading_zeros < bits; ++leading_zeros) {
+        if (num.test(bits - (leading_zeros + 1))) {
             break;
         }
     }
@@ -63,8 +63,9 @@ PackedFloat Add(PackedFloat const &a_in, PackedFloat const &b_in) {
     const bool a_in_mant_is_zero = a_in.GetMantissa() == 0;
     const bool b_in_mant_is_zero = b_in.GetMantissa() == 0;
     // a mantissa is not zero AND (a exponent is larger OR (the exponents are equal AND the a mantissa equal or bigger))
-    const bool a_is_larger = (!a_in_mant_is_zero) && (a_in_exp_is_larger || (exp_are_equal && a_in.GetMantissa() >= b_in.GetMantissa()));
-    
+    const bool a_is_larger =
+        (!a_in_mant_is_zero) && (a_in_exp_is_larger || (exp_are_equal && a_in.GetMantissa() >= b_in.GetMantissa()));
+
     // We always have a >= b to simplify the code
     // a is zero iff b is zero
     const PackedFloat a = a_is_larger ? a_in : b_in;
@@ -79,34 +80,39 @@ PackedFloat Add(PackedFloat const &a_in, PackedFloat const &b_in) {
     assert(a.IsZero() || IsMostSignificantBitSet(a_mantissa));
     assert(a.IsZero() || IsMostSignificantBitSet(b_mantissa));
 #endif
-    
+
     const bool subtraction = a.GetSign() != b.GetSign();
     Exponent res_exponent = a.GetExponent();
     const Exponent shift_m = a.GetExponent() - b.GetExponent();
 
     // Figure out how much we need to shift by
     // Xilinx permits signed shifts
-    // We want to keep an extra bit of precision to properly round the output
-    auto a_mantissa_shifted = static_cast<ap_uint<kMantissaBits+1>>(a_mantissa) >> (      0 - 1);
-    auto b_mantissa_shifted = static_cast<ap_uint<kMantissaBits+1>>(b_mantissa) >> (shift_m - 1);
+    // We want to keep an extra bit of precision (LSB) to properly round the output
+    // We also want an extra bit of range (MSB) to track overflow
+    auto a_mantissa_shifted = static_cast<ap_uint<kMantissaBits + 2>>(a_mantissa) >> (0 - 1);
+    auto b_mantissa_shifted = static_cast<ap_uint<kMantissaBits + 2>>(b_mantissa) >> (shift_m - 1);
 
     // Now we can add up the aligned mantissas
-    // ==== Add/Sub mantissas and overflow check ====
+    // ==== Add/Sub mantissas ====
     // Truncate the last bit (round towards zero)
     const ap_uint<kMantissaBits + 1> ab_sum = (a_mantissa_shifted + b_mantissa_shifted) >> 1;
-#pragma HLS BIND_OP variable = ab_sum op = add impl = fabric latency = 4'
+#pragma HLS BIND_OP variable = ab_sum op = add impl = fabric latency = 4
 
     // This returns an ap_int but the answer is always positive so the MSB is never set
     // Xilinx manual states signed <-> unsigned ignores the sign and converts bit for bit
-    // Widening assignments of ap_int are sign extended so we specify the casting route
+    // Widening assignments and right shifts of ap_int are sign extended so we specify the casting route
     assert(a_mantissa_shifted >= b_mantissa_shifted);
-    const ap_uint<kMantissaBits + 1> ab_abs_diff = static_cast<ap_uint<kMantissaBits+2>>(a_mantissa_shifted - b_mantissa_shifted) >> 1;
+    const ap_uint<kMantissaBits + 1> ab_abs_diff =
+        static_cast<ap_uint<kMantissaBits + 2>>(a_mantissa_shifted - b_mantissa_shifted) >> 1;
 #pragma HLS BIND_OP variable = ab_abs_diff op = sub impl = fabric latency = 4
+    assert(!IsMostSignificantBitSet(ab_abs_diff));
 
-    const ap_uint<kMantissaBits + 1> _res_mantissa = subtraction ? ab_abs_diff : ab_sum;
-    
+    // ==== overflow check ====
+
     // If the addition overflowed, we need to shift and increment the exponent
     // We could just do the right shift and let the mantissa normalization step fix up the exponent
+    const auto _res_mantissa = subtraction ? ab_abs_diff : ab_sum;
+
     const bool addition_overflowed = IsMostSignificantBitSet(_res_mantissa);
     ap_uint<kMantissaBits> res_mantissa = addition_overflowed ? (_res_mantissa >> 1) : _res_mantissa;
     res_exponent = res_exponent + (addition_overflowed ? 1 : 0);
@@ -124,7 +130,7 @@ PackedFloat Add(PackedFloat const &a_in, PackedFloat const &b_in) {
     res_exponent = res_exponent - leading_zeros;
 
     // Flush to zero if we underflow
-    if (underflow || !res_nonzero) { 
+    if (underflow || !res_nonzero) {
         res_mantissa = 0;
         res_exponent = 0;
     }

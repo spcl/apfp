@@ -15,11 +15,10 @@ template <int bits>
 inline int CountLeadingZeros(ap_uint<bits> const &num) {
 #pragma HLS INLINE
     int leading_zeros = 0;
-    for(int i = 0; i < bits; ++i) {
-        if(num.test(bits - (i + 1))) {
+    for(leading_zeros = 0; leading_zeros < bits; ++leading_zeros) {
+        if(num.test(bits - (leading_zeros + 1))) {
             break;
         }
-        leading_zeros = i;
     }
     return leading_zeros;
 }

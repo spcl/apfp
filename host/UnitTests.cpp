@@ -92,6 +92,13 @@ TEST_CASE("PackedFloat to/from MPFR Conversion") {
             REQUIRE(std::memcmp(reinterpret_cast<uint8_t const *>(mpfr_num_a->_mpfr_d) + offset, mpfr_num_b->_mpfr_d,
                                 std::min(mpfr_bytes, kMantissaBytes)) == 0);
             REQUIRE(PackedFloat(mpfr_num_b) == num);
+            // Verify that DeviceFloat correctly represents PackedFloat
+            DeviceFloat device_float;
+            static_assert(sizeof(DeviceFloat) == sizeof(PackedFloat),
+                          "PackedFloat and DeviceFloat must have the same size.");
+            device_float = *reinterpret_cast<DeviceFloat const *>(&num);
+            REQUIRE(device_float.GetSign() == num.sign);
+            REQUIRE(device_float.GetExponent() == num.exponent);
         }
     }
 }

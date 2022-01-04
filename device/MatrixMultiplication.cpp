@@ -21,7 +21,7 @@ ReadA_N:
 #pragma HLS LOOP_FLATTEN
             num[i] = mem[((n0 * kTileSizeN + n1) * size_k + k) * kLinesPerNumber + i];
             if (i == kLinesPerNumber - 1) {
-                a_to_feeder.Push(*reinterpret_cast<PackedFloat const *>(num));
+                a_to_feeder.Push(PackedFloat(num));
             }
         }
     }
@@ -35,8 +35,9 @@ ReadA_N:
     for (int n1 = 0; n1 < kTileSizeN; ++n1) {
 #pragma HLS PIPELINE II = 1
 #pragma HLS LOOP_FLATTEN
-        const auto num = mem[((n0 * kTileSizeN + n1) * size_k + k) * kLinesPerNumber];
-        a_to_feeder.Push(*reinterpret_cast<PackedFloat const *>(&num));
+        DramLine num[1];
+        num[0] = mem[(n0 * kTileSizeN + n1) * size_k + k];
+        a_to_feeder.Push(PackedFloat(num));
     }
 }
 
@@ -101,7 +102,7 @@ ReadB_M:
 #pragma HLS LOOP_FLATTEN
             num[i] = mem[(k * size_m + m0 * kTileSizeM + m1) * kLinesPerNumber + i];
             if (i == kLinesPerNumber - 1) {
-                b_to_feeder.Push(*reinterpret_cast<PackedFloat const *>(num));
+                b_to_feeder.Push(PackedFloat(num));
             }
         }
     }
@@ -115,8 +116,9 @@ ReadB_M:
     for (int m1 = 0; m1 < kTileSizeM; ++m1) {
 #pragma HLS PIPELINE II = 1
 #pragma HLS LOOP_FLATTEN
-        const auto num = mem[(k * size_m + m0 * kTileSizeM + m1) * kLinesPerNumber];
-        b_to_feeder.Push(*reinterpret_cast<PackedFloat const *>(&num));
+        DramLine num[1];
+        num[0] = mem[k * size_m + m0 * kTileSizeM + m1];
+        b_to_feeder.Push(PackedFloat(num));
     }
 }
 
@@ -179,7 +181,7 @@ ReadC_M:
 #pragma HLS LOOP_FLATTEN
             num[i] = mem[((n0 * kTileSizeN + n1) * size_m + m0 * kTileSizeM + m1) * kLinesPerNumber + i];
             if (i == kLinesPerNumber - 1) {
-                c_to_feeder.Push(*reinterpret_cast<PackedFloat const *>(num));
+                c_to_feeder.Push(PackedFloat(num));
             }
         }
     }
@@ -193,8 +195,9 @@ ReadC_M:
     for (int m1 = 0; m1 < kTileSizeM; ++m1) {
 #pragma HLS PIPELINE II = 1
 #pragma HLS LOOP_FLATTEN
-        const auto num = mem[((n0 * kTileSizeN + n1) * size_m + m0 * kTileSizeM + m1) * kLinesPerNumber];
-        c_to_feeder.Push(*reinterpret_cast<PackedFloat const *>(&num));
+        DramLine num[1];
+        num[0] = mem[(n0 * kTileSizeN + n1) * size_m + m0 * kTileSizeM + m1];
+        c_to_feeder.Push(PackedFloat(num));
     }
 }
 
@@ -283,7 +286,7 @@ WriteC_M:
 #pragma HLS PIPELINE II = 1
 #pragma HLS LOOP_FLATTEN
             if (i == 0) {
-                *reinterpret_cast<PackedFloat *>(num) = from_kernel.Pop();
+                from_kernel.Pop().UnpackFlits(num);
             }
             const bool in_bounds = (n0 * kTileSizeN + n1 < size_n) && (m0 * kTileSizeM + m1 < size_m);
             if (in_bounds) {
@@ -301,11 +304,11 @@ WriteC_M:
     for (int m1 = 0; m1 < kTileSizeM; ++m1) {
 #pragma HLS PIPELINE II = 1
 #pragma HLS LOOP_FLATTEN
-        const auto num = from_kernel.Pop();
+        DramLine num[1];
+        from_kernel.Pop().UnpackFlits(num);
         const bool in_bounds = (n0 * kTileSizeN + n1 < size_n) && (m0 * kTileSizeM + m1 < size_m);
         if (in_bounds) {
-            mem[((n0 * kTileSizeN + n1) * size_m + m0 * kTileSizeM + m1) * kLinesPerNumber] =
-                *reinterpret_cast<DramLine const *>(&num);
+            mem[(n0 * kTileSizeN + n1) * size_m + m0 * kTileSizeM + m1] = num[0];
         }
     }
 }

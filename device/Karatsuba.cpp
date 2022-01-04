@@ -4,7 +4,7 @@
 
 constexpr int AddLatency(int bits) {
     // 4 is the maximum supported latency of integer adds using the BIND_OP pragma
-    return (bits >= 1024) ? 4 : (bits >= 768) ? 3 : (bits >= 512) ? 2 : (bits >= 256) ? 1 : 0;
+    return (bits >= 512) ? 4 : (bits >= 384) ? 3 : (bits >= 256) ? 2 : (bits >= 128) ? 1 : 0;
 }
 
 template <int bits>
@@ -40,7 +40,7 @@ auto _Karatsuba(ap_uint<bits> const &a, ap_uint<bits> const &b) ->
     Full a0a1b0b1 = _Karatsuba<bits / 2>(a0a1, b0b1);
     ap_int<bits + 2> a0a1b0b1_signed = a0a1b0b1_is_neg ? -ap_int<bits + 1>(a0a1b0b1) : ap_int<bits + 2>(a0a1b0b1);
     ap_uint<bits + 2> z1 = ap_uint<bits + 2>(a0a1b0b1_signed) + z0 + z2;
-#pragma HLS BIND_OP variable = z1 op = add impl = fabric latency = AddLatency(bits)
+#pragma HLS BIND_OP variable = z1 op = add impl = fabric latency = AddLatency(bits + 2)
 
     // Align everything and combine
     ap_uint<(2 * bits)> z0z2 = z0 | (ap_uint<(2 * bits)>(z2) << bits);
@@ -49,7 +49,7 @@ auto _Karatsuba(ap_uint<bits> const &a, ap_uint<bits> const &b) ->
     // Workaround to avoid HLS padding an extra bit for the add. This is necessary to support 2048 bit multiplication,
     // which required adding two 4096 numbers, because 4096 bits is the maximum width support by the ap_uint type.
     z.V = z1_aligned.V + z0z2.V;
-#pragma HLS BIND_OP variable = z.V op = add impl = fabric latency = AddLatency(bits)
+#pragma HLS BIND_OP variable = z.V op = add impl = fabric latency = AddLatency(2 * bits)
 
     return z;
 }

@@ -142,7 +142,7 @@ class PackedFloat {
 
     inline std::string ToString() const {
         std::stringstream ss;
-        ss << ((Sign() == 0) ? "+" : "-") << std::hex;
+        ss << ((sign == 0) ? "+" : "-") << std::hex;
         constexpr auto i_end = (kMantissaBytes + sizeof(Limb) + 1) / sizeof(Limb);
         for (size_t i = 0; i < i_end; ++i) {
             if (i < i_end - 1) {

@@ -55,7 +55,6 @@ PackedFloat Multiply(PackedFloat const &a, PackedFloat const &b) {
 
 // Does this correctly output the result if a and b are different signs?
 // The mantissa of the result should depend on the sign bits of a and b
-
 PackedFloat Add(PackedFloat const &a, PackedFloat const &b) {
 #pragma HLS INLINE
 
@@ -88,33 +87,32 @@ PackedFloat Add(PackedFloat const &a, PackedFloat const &b) {
     // Optionally shift right by 1, 2, 4, 8, 16... log2(B), such that all bits have eventually traveled to
     // their designated position.
     // This is unsigned
-    a_mantissa = a_mantissa >> shift_c;
-    b_mantissa = b_mantissa >> shift_m;
-//     const int kNumStages = hlslib::ConstLog2(kMantissaBits);
-// ShiftStages:
-//     for (int i = 0; i < kNumStages; ++i) {
-// #pragma HLS UNROLL
-//         a_mantissa = ((shift_c & (1 << i)) == 0) ? a_mantissa : (a_mantissa >> (1 << i));
-//         b_mantissa = ((shift_m & (1 << i)) == 0) ? b_mantissa : (b_mantissa >> (1 << i));
-//     }
-    // Finally zero out the mantissas if they are shifted by more than the precision
-    // Is this necessary?
-    a_mantissa = shift_c >= kMantissaBits ? decltype(a_mantissa)(0) : a_mantissa;
-    b_mantissa = shift_m >= kMantissaBits ? decltype(b_mantissa)(0) : b_mantissa;
+    // Xilinx permits signed shifts
+    // We want to keep an extra bit of precision to properly round the outupt
+    auto a_mantissa_wide = static_cast<ap_uint<kMantissaBits+1>>(a_mantissa) >> (shift_c - 1);
+    auto b_mantissa_wide = static_cast<ap_uint<kMantissaBits+1>>(b_mantissa) >> (shift_m - 1);
+
+    // proper rounding
+    auto carry_in = ap_uint<1>(a_mantissa_wide.bit(0) ^ b_mantissa_wide.bit(0));
+    a_mantissa = a_mantissa_wide.range(kMantissaBits, 1);
+    b_mantissa = b_mantissa_wide.range(kMantissaBits, 1);
     // Now we can add up the aligned mantissas
     // ==== Add/Sub mantissas and overflow check ====
-    const ap_uint<kMantissaBits + 1> ab_sum = a_mantissa + b_mantissa;
+    const ap_uint<kMantissaBits + 1> ab_sum = carry_in + a_mantissa + b_mantissa;
 #pragma HLS BIND_OP variable = ab_sum op = add impl = fabric latency = 4
-    ap_uint<kMantissaBits + 1> larger_mantissa = a_is_larger ? a_mantissa : b_mantissa;
-    ap_uint<kMantissaBits + 1> smaller_mantissa = a_is_larger ? b_mantissa : a_mantissa;
     // This returns an ap_int but the answer is always positive so the MSB is never set
     // Xilinx manual states signed <-> unsigned ignores the sign and converts bit for bit
-    const ap_uint<kMantissaBits + 1> ab_abs_diff = static_cast<ap_uint<kMantissaBits>>(larger_mantissa - smaller_mantissa);
+    // Widening assignments of int are sign extended so we specify the casting route
+
+    ap_uint<kMantissaBits + 1> larger_mantissa = a_is_larger ? a_mantissa : b_mantissa;
+    ap_uint<kMantissaBits + 1> smaller_mantissa = a_is_larger ? b_mantissa : a_mantissa;
+    const ap_uint<kMantissaBits + 1> ab_abs_diff = static_cast<ap_uint<kMantissaBits+2>>(larger_mantissa - smaller_mantissa);
 #pragma HLS BIND_OP variable = ab_abs_diff op = sub impl = fabric latency = 4
 
     const ap_uint<kMantissaBits + 1> _res_mantissa = subtraction ? ab_abs_diff : ab_sum;
     
     // If the addition overflowed, we need to shift and increment the exponent
+    // We could just do the right shift and let the mantissa normalization step fix up the exponent
     const bool addition_overflowed = IsMostSignificantBitSet(_res_mantissa);
     ap_uint<kMantissaBits> res_mantissa = addition_overflowed ? (_res_mantissa >> 1) : _res_mantissa;
     res_exponent = res_exponent + (addition_overflowed ? 1 : 0);

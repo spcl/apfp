@@ -1,8 +1,5 @@
 #pragma once
 
-#include <gmp.h>
-#include <mpfr.h>
-
 #include <algorithm>  // std::min
 #include <cassert>
 #include <cstdint>  // uint8_t
@@ -12,23 +9,9 @@
 #include <sstream>
 
 #include "Config.h"
+#include "Types.h"
 
-using Limb = mp_limb_t;
-#ifdef APFP_USE_GMP_SEMANTICS
-using Exponent = mp_exp_t;
-#else
-using Exponent = mpfr_exp_t;
-#endif
-/// Sign convention: 0 is positive, anything else is negative
-using Sign = Exponent;  // This will make sure that we are always limb-aligned
-constexpr int kMantissaBytes = kBytes - sizeof(Exponent) - sizeof(Sign);
-constexpr int kMantissaBits = 8 * kMantissaBytes;
-using Mantissa = uint8_t[kMantissaBytes];
-static_assert(sizeof(Mantissa) == kMantissaBytes, "Mantissa must be tightly packed.");
-static_assert(kMantissaBytes % sizeof(Limb) == 0, "Mantissa size must be a multiple of the GMP/MPFR limb size.");
-
-// This is the only MPFR rounding mode supported, so use it throughout
-constexpr auto kRoundingMode = MPFR_RNDZ;
+using MantissaFlat = ap_uint<kMantissaBits>;
 
 /// Full floating point number densely packed to fit into a 512-bit DRAM line.
 #pragma pack(push, 1)
@@ -44,13 +27,96 @@ class PackedFloat {
     inline PackedFloat &operator=(PackedFloat const &) = default;
     inline PackedFloat &operator=(PackedFloat &&) = default;
 
-    inline PackedFloat(Sign const &_sign, Exponent const &_exponent, void const *const _mantissa)
-        : exponent(_exponent), sign(_sign) {
-        std::memcpy(mantissa, _mantissa, kMantissaBytes);
+    inline PackedFloat(Sign const &sign, Exponent const &exponent, void const *const mantissa) {
+#pragma HLS INLINE
+        SetSign(sign);
+        SetExponent(exponent);
+        SetMantissa(mantissa);
     }
 
-    inline Limb operator[](const size_t i) const {
-        return reinterpret_cast<mp_limb_t const *>(mantissa)[i];
+    inline PackedFloat(const DramLine flits[kLinesPerNumber]) {
+#pragma HLS INLINE
+        for (int i = 0; i < kLinesPerNumber; ++i) {
+#pragma HLS UNROLL
+            SetFlit(i, flits[i]);
+        }
+    }
+
+    MantissaFlat GetMantissa() const {
+#pragma HLS INLINE
+        return data_.range(kMantissaBits - 1, 0);
+    }
+
+    void SetMantissa(MantissaFlat const &mantissa) {
+#pragma HLS INLINE
+        data_.range(kMantissaBits - 1, 0) = mantissa;
+    }
+
+    void SetMantissa(void const *const mantissa) {
+#pragma HLS INLINE
+        std::memcpy(&data_, mantissa, kMantissaBytes);
+    }
+
+    Exponent GetExponent() const {
+#pragma HLS INLINE
+        return data_.range(kBits - 8 * sizeof(Sign) - 1, kBits - 8 * sizeof(Sign) - 8 * sizeof(Exponent));
+    }
+
+    void SetExponent(Exponent const &exponent) {
+#pragma HLS INLINE
+        data_.range(kBits - 8 * sizeof(Sign) - 1, kBits - 8 * sizeof(Sign) - 8 * sizeof(Exponent)) = exponent;
+    }
+
+    Sign GetSign() const {
+#pragma HLS INLINE
+        return data_.range(kBits - 1, kBits - 8 * sizeof(Sign));
+    }
+
+    void SetSign(Sign const &sign) {
+#pragma HLS INLINE
+        data_.range(kBits - 1, kBits - 8 * sizeof(Sign)) = sign;
+    }
+
+    DramLine GetFlit(const size_t i) const {
+#pragma HLS INLINE
+        return data_.range((i + 1) * 512 - 1, i * 512);
+    }
+
+    void SetFlit(const size_t i, DramLine const &flit) {
+#pragma HLS INLINE
+        data_.range((i + 1) * 512 - 1, i * 512) = flit;
+    }
+
+    void operator>>(DramLine flits[kLinesPerNumber]) const {
+#pragma HLS INLINE
+        for (int i = 0; i < kLinesPerNumber; ++i) {
+#pragma HLS UNROLL
+            flits[i] = GetFlit(i);
+        }
+    }
+
+    static PackedFloat Zero() {
+#pragma HLS INLINE
+        PackedFloat x;
+        x.data_ = 0;
+        return x;
+    }
+
+    /// Slightly looser comparison where zero values are allowed to differ in the sign and exponent
+    inline bool EquivCompare(PackedFloat const &rhs) {
+        if(IsZero() && rhs.IsZero()) {
+            return true;
+        } else {
+            return *this == rhs;
+        }
+    }
+
+    inline bool IsZero() const {
+        return GetMantissa() == 0;
+    }
+
+    Limb GetLimb(const size_t i) const {
+        return data_.range((i + 1) * 8 * sizeof(Limb) - 1, i * 8 * sizeof(Limb));
     }
 
 #ifndef HLSLIB_SYNTHESIS  // Interoperability with GMP/MPFR, but only on the host side
@@ -61,10 +127,11 @@ class PackedFloat {
         const int gmp_bytes = num_limbs * sizeof(mp_limb_t);
         const size_t bytes_to_copy = std::min(gmp_bytes, kMantissaBytes);
         const size_t copy_from = gmp_bytes - bytes_to_copy;
-        std::memset(mantissa + bytes_to_copy, 0x0, kMantissaBytes - bytes_to_copy);
-        std::memcpy(mantissa, reinterpret_cast<uint8_t const *>(num->_mp_d) + copy_from, bytes_to_copy);
-        exponent = num->_mp_exp - num_limbs + 1;
-        sign = num->_mp_size < 0;  // 1 if negative, 0 otherwise
+        std::memset(reinterpret_cast<char *>(&data_) + bytes_to_copy, 0x0, kMantissaBytes - bytes_to_copy);
+        std::memcpy(reinterpret_cast<char *>(&data_), reinterpret_cast<uint8_t const *>(num->_mp_d) + copy_from,
+                    bytes_to_copy);
+        SetExponent(num->_mp_exp - num_limbs + 1);
+        SetSign(num->_mp_size < 0);  // 1 if negative, 0 otherwise
     }
 
     inline PackedFloat(const mpfr_srcptr num) {
@@ -77,11 +144,12 @@ class PackedFloat {
             const size_t copy_from = mpfr_bytes - bytes_to_copy;
             const size_t copy_to = kMantissaBytes - bytes_to_copy;
             // Doesn't this copy to the LSB of the mantissa?
-            std::memset(mantissa, 0x0, copy_to);
-            std::memcpy(mantissa + copy_to, reinterpret_cast<uint8_t const *>(num->_mpfr_d) + copy_from, bytes_to_copy);
+            std::memset(reinterpret_cast<char *>(&data_), 0x0, copy_to);
+            std::memcpy(reinterpret_cast<char *>(&data_) + copy_to,
+                    reinterpret_cast<uint8_t const *>(num->_mpfr_d) + copy_from, bytes_to_copy);
             // Section 5.16 of the MPFR manual suggests the exponent might take on special values
-            exponent = mpfr_get_exp(num);
-            sign = mpfr_signbit(num) ? 1 : 0;  // 1 if negative, 0 otherwise
+            SetExponent(mpfr_get_exp(num));
+            SetSign(mpfr_signbit(num) ? 1 : 0);  // 1 if negative, 0 otherwise
         } else {
             *this = PackedFloat::Zero();
         }
@@ -99,14 +167,14 @@ class PackedFloat {
         assert(gmp_limbs >= kNumLimbs);
         num->_mp_size = 0;
         for (size_t i = 0; i < kNumLimbs; ++i) {
-            const auto limb = (*this)[i];
+            const auto limb = GetLimb(i);
             num->_mp_d[i] = limb;
             if (limb > 0) {
                 num->_mp_size = i + 1;
             }
         }
-        num->_mp_exp = exponent + num->_mp_size - 1;
-        if (sign) {
+        num->_mp_exp = GetExponent() + num->_mp_size - 1;
+        if (GetSign()) {
             num->_mp_size = -num->_mp_size;
         }
     }
@@ -127,76 +195,49 @@ class PackedFloat {
             const auto copy_to = mpfr_bytes - bytes_to_copy;
             const auto copy_from = kMantissaBytes - bytes_to_copy;
             std::memset(num->_mpfr_d, 0x0, copy_to);
-            std::memcpy(reinterpret_cast<uint8_t *>(num->_mpfr_d) + copy_to, mantissa + copy_from, bytes_to_copy);
+            std::memcpy(reinterpret_cast<char *>(num->_mpfr_d) + copy_to,
+                reinterpret_cast<char const *>(&data_) + copy_from, bytes_to_copy);
             // Returns nonzero is exponent is not in range
-            if (mpfr_set_exp(num, exponent)) {
+            if (mpfr_set_exp(num, GetExponent())) {
                 // The only way this can happen is if we hit the magic exponent for NaN/Zero/Inf
                 // So flush to zero for now
                 mpfr_set_ui(num, 0, kRoundingMode);
             }
             // 1 if negative, 0 otherwise
-            mpfr_setsign(num, num, sign, kRoundingMode);
+            mpfr_setsign(num, num, GetSign(), kRoundingMode);
         }
     }
 #endif  // End interoperability with GMP
 
     inline std::string ToString() const {
         std::stringstream ss;
-        ss << ((sign == 0) ? "+" : "-") << std::hex;
-        constexpr auto i_end = (kMantissaBytes + sizeof(Limb) + 1) / sizeof(Limb);
+        ss << ((GetSign() != 0) ? "-" : "+") << std::hex;
+        constexpr auto i_end = kMantissaBytes / sizeof(Limb);
+        static_assert(kMantissaBytes % sizeof(Limb) == 0);
         for (size_t i = 0; i < i_end; ++i) {
-            if (i < i_end - 1) {
-                ss << std::setfill('0') << std::setw(2 * sizeof(Limb)) << (*this)[i] << "|";
-            } else {
-                constexpr auto kLimbModulo = kMantissaBytes % sizeof(Limb);
-                ss << std::setfill('0') << std::setw(kLimbModulo > 0 ? (2 * kLimbModulo) : (2 * sizeof(Limb)))
-                   << (*this)[i];
-            }
+            ss << std::setfill('0') << std::setw(2 * sizeof(Limb)) << GetLimb(i) << "|";
         }
-        ss << "e" << std::dec << exponent;
+        ss << "e" << std::dec << GetExponent();
         return ss.str();
     }
 
 
     inline bool operator==(PackedFloat const &rhs) const {
-        if ((sign == 0) != (rhs.sign == 0)) {
+        if ((GetSign() == 0) != (rhs.GetSign() == 0)) {
             return false;
         }
-        if (exponent != rhs.exponent) {
+        if (GetExponent() != rhs.GetExponent()) {
             return false;
         }
-        return std::memcmp(mantissa, rhs.mantissa, kMantissaBytes) == 0;
+        return std::memcmp(&data_, &rhs.data_, kMantissaBytes) == 0;
     }
 
     inline bool operator!=(PackedFloat const &rhs) const {
         return !(*this == rhs);
     }
 
-    /// Slightly looser comparison where zero values are allowed to differ in the sign and exponent
-    inline bool EquivCompare(PackedFloat const &rhs) {
-        if(IsZero() && rhs.IsZero()) {
-            return true;
-        } else {
-            return *this == rhs;
-        }
-    }
-
-    inline bool IsZero() const {
-        return std::all_of(std::begin(mantissa), std::end(mantissa), [](auto x) { return x == 0; });
-    }
-
-    static PackedFloat Zero() {
-        PackedFloat x;
-        x.exponent = 0;
-        x.sign = 0;
-        std::memset(x.mantissa, 0, kMantissaBytes);
-        return x;
-    }
-
-    // Fields are left public
-    Mantissa mantissa;
-    Exponent exponent;
-    Sign sign;
+   private:
+    ap_uint<kBits> data_;
 };
 #pragma pack(pop)
 static_assert(sizeof(PackedFloat) == kBytes, "Numbers must be tightly packed.");

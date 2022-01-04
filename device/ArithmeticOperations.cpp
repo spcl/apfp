@@ -27,15 +27,15 @@ inline int CountLeadingZeros(ap_uint<bits> const &num) {
 PackedFloat Multiply(PackedFloat const &a, PackedFloat const &b) {
 #pragma HLS INLINE
     // Pad mantissas to avoid passing awkward sizes to Karatsuba
-    const ap_uint<kBits> a_mantissa_padded(*reinterpret_cast<ap_uint<kMantissaBits> const *>(a.mantissa));
-    const ap_uint<kBits> b_mantissa_padded(*reinterpret_cast<ap_uint<kMantissaBits> const *>(b.mantissa));
+    const ap_uint<kBits> a_mantissa_padded(a.GetMantissa());
+    const ap_uint<kBits> b_mantissa_padded(b.GetMantissa());
 #ifdef APFP_GMP_SEMANTICS  // Use GMP semantics
     constexpr auto kLimbBits = 8 * sizeof(mp_limb_t);
     // Meat of the computation. Only keep the top bits of the computation and throw away the rest
     const ap_uint<(2 * kMantissaBits)> _m_mantissa = Karatsuba(a_mantissa_padded, b_mantissa_padded);
     const bool limb_zero = _m_mantissa.range(kMantissaBits + kLimbBits - 1, kMantissaBits) == 0;
     ap_uint<kMantissaBits + kLimbBits> m_mantissa = _m_mantissa;  // Truncate
-    const Exponent m_exponent = a.exponent + b.exponent - limb_zero;
+    const Exponent m_exponent = a.GetExponent() + b.GetExponent() - limb_zero;
 #else  // Otherwise use MPFR semantics
     const ap_uint<kMantissaBits + 1> _m_mantissa =
         Karatsuba(a_mantissa_padded, b_mantissa_padded) >> (kMantissaBits - 1);
@@ -44,13 +44,13 @@ PackedFloat Multiply(PackedFloat const &a, PackedFloat const &b) {
     ap_uint<kMantissaBits + 1> m_mantissa = should_be_shifted ? _m_mantissa : (_m_mantissa >> 1);
     // Add up exponents. If the most significant bit was 1, we're done. Otherwise subtract 1 due to
     // the shift.
-    const Exponent m_exponent = a.exponent + b.exponent - (should_be_shifted ? 1 : 0);
+    const Exponent m_exponent = a.GetExponent() + b.GetExponent() - (should_be_shifted ? 1 : 0);
 #endif
     // The sign is just the XOR of the existing signs
     PackedFloat result;
-    std::memcpy(result.mantissa, &m_mantissa, kMantissaBytes);
-    result.exponent = m_exponent;
-    result.sign = a.sign != b.sign;
+    result.SetMantissa(m_mantissa);
+    result.SetExponent(m_exponent);
+    result.SetSign(a.GetSign() != b.GetSign());
     return result;
 }
 
@@ -61,8 +61,8 @@ PackedFloat Add(PackedFloat const &a, PackedFloat const &b) {
 #pragma HLS INLINE
 
     // Figure out how much we need to shift by
-    ap_uint<kMantissaBits> a_mantissa(*reinterpret_cast<ap_uint<kMantissaBits> const *>(a.mantissa));
-    ap_uint<kMantissaBits> b_mantissa(*reinterpret_cast<ap_uint<kMantissaBits> const *>(b.mantissa));
+    ap_uint<kMantissaBits> a_mantissa(a.GetMantissa());
+    ap_uint<kMantissaBits> b_mantissa(b.GetMantissa());
 
 #ifndef HLSLIB_SYNTHESIS
     // We better not be getting subnormal inputs
@@ -70,15 +70,15 @@ PackedFloat Add(PackedFloat const &a, PackedFloat const &b) {
     assert(a.IsZero() || IsMostSignificantBitSet(b_mantissa));
 #endif
 
-    const bool exp_are_equal = (a.exponent == b.exponent);
-    const bool a_exp_is_larger = (a.exponent > b.exponent);
+    const bool exp_are_equal = (a.GetExponent() == b.GetExponent());
+    const bool a_exp_is_larger = (a.GetExponent() > b.GetExponent());
     const bool a_mant_is_zero = a_mantissa == 0;
     const bool b_mant_is_zero = b_mantissa == 0;
-    const bool a_is_larger = (!a_mant_is_zero) && (a_exp_is_larger || (exp_are_equal && a.mantissa > b.mantissa));
-    const bool subtraction = a.sign != b.sign;
-    Exponent res_exponent = ((a_exp_is_larger && !a_mant_is_zero) || b_mant_is_zero) ? a.exponent : b.exponent;
-    const Exponent shift_c = (!a_exp_is_larger && !b_mant_is_zero) ? (b.exponent - a.exponent) : 0;
-    const Exponent shift_m = (a_exp_is_larger && !a_mant_is_zero) ? (a.exponent - b.exponent) : 0;
+    const bool a_is_larger = (!a_mant_is_zero) && (a_exp_is_larger || (exp_are_equal && a.GetMantissa() > b.GetMantissa()));
+    const bool subtraction = a.GetSign() != b.GetSign();
+    Exponent res_exponent = ((a_exp_is_larger && !a_mant_is_zero) || b_mant_is_zero) ? a.GetExponent() : b.GetExponent();
+    const Exponent shift_c = (!a_exp_is_larger && !b_mant_is_zero) ? (b.GetExponent() - a.GetExponent()) : 0;
+    const Exponent shift_m = (a_exp_is_larger && !a_mant_is_zero) ? (a.GetExponent() - b.GetExponent()) : 0;
 
 #ifndef HLSLIB_SYNTHESIS
     // Turns out Xilinx allows signed shifts!
@@ -144,11 +144,10 @@ PackedFloat Add(PackedFloat const &a, PackedFloat const &b) {
 #endif
 
     PackedFloat result;
-    result.exponent = res_exponent;
-    std::memcpy(result.mantissa, &res_mantissa, kMantissaBytes);
-
+    result.SetMantissa(res_mantissa);
+    result.SetExponent(res_exponent);
     // Sign will be the same as whatever is the largest number
-    result.sign = a_exp_is_larger ? a.sign : b.sign;
+    result.SetSign(a_is_larger ? a.GetSign() : b.GetSign());
 
     return result;
 }

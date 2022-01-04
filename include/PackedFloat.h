@@ -82,7 +82,6 @@ class PackedFloat {
             exponent = mpfr_get_exp(num);
             sign = mpfr_signbit(num) ? 1 : 0;  // 1 if negative, 0 otherwise
         } else {
-            std::cout << "Returning zero on " << mpfr_get_d(num, kRoundingMode) << std::endl;
             *this = PackedFloat::Zero();
         }
     }
@@ -143,7 +142,7 @@ class PackedFloat {
 
     inline std::string ToString() const {
         std::stringstream ss;
-        ss << ((Sign() < 0) ? "-" : "+") << std::hex;
+        ss << ((Sign() == 0) ? "+" : "-") << std::hex;
         constexpr auto i_end = (kMantissaBytes + sizeof(Limb) + 1) / sizeof(Limb);
         for (size_t i = 0; i < i_end; ++i) {
             if (i < i_end - 1) {

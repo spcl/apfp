@@ -38,16 +38,16 @@ void RandomNumberGenerator::Generate(mpfr_ptr num) {
     }
     mpfr_set_exp(num, exp);
 
-    if(u01_distr_(small_rng_) < zero_frac_) {
+    if(u01_distr_(small_rng_) < kZerosFraction) {
         mpfr_set_ui(num, 0, kRoundingMode);
     }
 
-    if(u01_distr_(small_rng_) < one_frac_) {
+    if(u01_distr_(small_rng_) < kOnesFraction) {
         mpfr_set_ui(num, 1, kRoundingMode);
     }
 
     // randomly flip sign bit
-    mpfr_setsign(num, num, (u01_distr_(small_rng_) < neg_frac_ ? 1 : 0), kRoundingMode);
+    mpfr_setsign(num, num, (u01_distr_(small_rng_) < kNegFraction ? 1 : 0), kRoundingMode);
 }
 
 void RandomNumberGenerator::Generate(mpf_ptr num) {

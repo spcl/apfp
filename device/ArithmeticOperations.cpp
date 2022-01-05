@@ -89,8 +89,8 @@ PackedFloat Add(PackedFloat const &a_in, PackedFloat const &b_in) {
     // Xilinx permits signed shifts
     // We want to keep an extra bit of precision (LSB) to properly round the output
     // We also want an extra bit of range (MSB) to track overflow
-    auto a_mantissa_shifted = static_cast<ap_uint<kMantissaBits + 2>>(a_mantissa) >> (0 - 1);
-    auto b_mantissa_shifted = static_cast<ap_uint<kMantissaBits + 2>>(b_mantissa) >> (shift_m - 1);
+    auto a_mantissa_shifted = static_cast<ap_uint<kMantissaBits + 2>>(a_mantissa) << 1;
+    auto b_mantissa_shifted = (static_cast<ap_uint<kMantissaBits + 2>>(b_mantissa) << 1) >> shift_m;
 
     // Now we can add up the aligned mantissas
     // ==== Add/Sub mantissas ====

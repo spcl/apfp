@@ -13,8 +13,12 @@
 struct MpfrWrapper {
     mpfr_t x;
 
-    operator mpfr_ptr() { return x; }
-    operator mpfr_srcptr() const { return x; }
+    operator mpfr_ptr() {
+        return x;
+    }
+    operator mpfr_srcptr() const {
+        return x;
+    }
 };
 
 #ifdef HLSLIB_SIMULATE_OPENCL
@@ -63,6 +67,7 @@ bool RunTest(std::string const &kernel_path, int size_n, int size_k, int size_m)
     std::cout << " Done.\n";
     // Allocate device memory, padding each buffer to the tile size
     std::cout << "Copying data to the device..." << std::flush;
+#ifndef APFP_USE_HBM
     auto a_device = context.MakeBuffer<DramLine, hlslib::ocl::Access::read>(
         hlslib::ocl::StorageType::DDR, 1,
         kLinesPerNumber * (hlslib::CeilDivide(size_n, kTileSizeN) * kTileSizeN) * size_k);
@@ -73,6 +78,18 @@ bool RunTest(std::string const &kernel_path, int size_n, int size_k, int size_m)
         hlslib::ocl::StorageType::DDR, 1,
         kLinesPerNumber * (hlslib::CeilDivide(size_n, kTileSizeN) * kTileSizeN) *
             (hlslib::CeilDivide(size_m, kTileSizeM) * kTileSizeM));
+#else
+    auto a_device = context.MakeBuffer<DramLine, hlslib::ocl::Access::read>(
+        hlslib::ocl::StorageType::HBM, 0,
+        kLinesPerNumber * (hlslib::CeilDivide(size_n, kTileSizeN) * kTileSizeN) * size_k);
+    auto b_device = context.MakeBuffer<DramLine, hlslib::ocl::Access::read>(
+        hlslib::ocl::StorageType::HBM, 1,
+        kLinesPerNumber * size_k * (hlslib::CeilDivide(size_m, kTileSizeM) * kTileSizeM));
+    auto c_device = context.MakeBuffer<DramLine, hlslib::ocl::Access::readWrite>(
+        hlslib::ocl::StorageType::HBM, 2,
+        kLinesPerNumber * (hlslib::CeilDivide(size_n, kTileSizeN) * kTileSizeN) *
+            (hlslib::CeilDivide(size_m, kTileSizeM) * kTileSizeM));
+#endif
     // Copy data to the accelerator cast to 512-bit DRAM lines
     a_device.CopyFromHost(0, kLinesPerNumber * size_n * size_k, reinterpret_cast<DramLine const *>(&a_host[0]));
     b_device.CopyFromHost(0, kLinesPerNumber * size_k * size_m, reinterpret_cast<DramLine const *>(&b_host[0]));

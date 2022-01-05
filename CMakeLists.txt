@@ -10,6 +10,7 @@ set(APFP_MULT_BASE_BITS 18 CACHE STRING "Number of bits to bottom out the multip
 set(APFP_TILE_SIZE_N 32 CACHE STRING "Tile size in the N-dimension when running matrix-matrix multiplication.")
 set(APFP_TILE_SIZE_M 32 CACHE STRING "Tile size in the M-dimension when running matrix-matrix multiplication.")
 set(APFP_SEMANTICS "MPFR" CACHE STRING "Which semantics to use for floating point operations [GMP/MPFR].")
+set(APFP_USE_HBM OFF CACHE BOOL "Use multiple HBM banks for memory accesses.")
 set(APFP_DEBUGGING OFF CACHE BOOL "Enable debugging in generated kernels.")
 set(APFP_PROFILING OFF CACHE BOOL "Enable profiling in generated kernels.")
 set(APFP_SAVE_TEMPS OFF CACHE BOOL "Save temporary files from kernel builds.")
@@ -38,6 +39,21 @@ set(APFP_KERNEL_FILES device/MatrixMultiplication.cpp
                       device/ArithmeticOperations.cpp
                       device/Karatsuba.cpp)
 
+# Port mapping
+if(APFP_USE_HBM)
+  set(APFP_PORT_MAPPING
+      m_axi_a:HBM[0]
+      m_axi_b:HBM[1]
+      m_axi_c_read:HBM[2]
+      m_axi_c_write:HBM[2])
+else()
+  set(APFP_PORT_MAPPING
+      m_axi_a:DDR[1]
+      m_axi_b:DDR[1]
+      m_axi_c_read:DDR[1]
+      m_axi_c_write:DDR[1])
+endif()
+
 # Setup FPGA kernel targets
 add_vitis_kernel(MatrixMultiplication FILES ${APFP_KERNEL_FILES}
                  INCLUDE_DIRS include hlslib/include ${CMAKE_BINARY_DIR}
@@ -48,10 +64,7 @@ add_vitis_kernel(MatrixMultiplication FILES ${APFP_KERNEL_FILES}
                          include/Karatsuba.h
                          include/MatrixMultiplication.h
                          include/PackedFloat.h
-                PORT_MAPPING m_axi_a:DDR[1]
-                             m_axi_b:DDR[1]
-                             m_axi_c_read:DDR[1]
-                             m_axi_c_write:DDR[1])
+                PORT_MAPPING ${APFP_PORT_MAPPING})
 add_vitis_program(MatrixMultiplication ${APFP_PLATFORM}
                   PROFILING ${APFP_PROFILING}
                   DEBUGGING ${APFP_DEBUGGING}
@@ -77,6 +90,9 @@ target_compile_definitions(TestSimulation PRIVATE HLSLIB_SIMULATE_OPENCL)
 
 # Executable used to run from an xclbin binary
 add_executable(TestHardware host/TestProgram.cpp)
+if(APFP_USE_HBM)
+  target_compile_definitions(TestHardware PRIVATE -DAPFP_USE_HBM)
+endif()
 target_link_libraries(TestHardware apfp simulation ${Vitis_LIBRARIES} ${GMP_LIBRARIES} ${MPFR_LIBRARIES}) 
 
 # Testing

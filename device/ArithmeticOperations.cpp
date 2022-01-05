@@ -59,12 +59,17 @@ PackedFloat Add(PackedFloat const &a_in, PackedFloat const &b_in) {
 #pragma HLS INLINE
 
     const bool exp_are_equal = (a_in.GetExponent() == b_in.GetExponent());
-    const bool a_in_exp_is_larger = (a_in.GetExponent() > b_in.GetExponent());
+    const bool a_in_exp_strictly_larger = (a_in.GetExponent() > b_in.GetExponent());
     const bool a_in_mant_is_zero = a_in.GetMantissa() == 0;
     const bool b_in_mant_is_zero = b_in.GetMantissa() == 0;
-    // a mantissa is not zero AND (a exponent is larger OR (the exponents are equal AND the a mantissa equal or bigger))
-    const bool a_is_larger =
-        (!a_in_mant_is_zero) && (a_in_exp_is_larger || (exp_are_equal && a_in.GetMantissa() >= b_in.GetMantissa()));
+    const bool a_in_mantissa_larger = a_in.GetMantissa() >= b_in.GetMantissa();
+
+    // Plain comparison of exponent and mantissa
+    const bool a_larger_if_both_nonzero = a_in_exp_strictly_larger || (exp_are_equal && a_in_mantissa_larger);
+    // Handle a being zero
+    const bool a_larger_if_b_nonzero = !a_in_mant_is_zero && a_larger_if_both_nonzero;
+    // Handle b being zero
+    const bool a_is_larger = b_in_mant_is_zero || a_larger_if_b_nonzero;
 
     // We always have a >= b to simplify the code
     // a is zero iff b is zero
@@ -78,7 +83,9 @@ PackedFloat Add(PackedFloat const &a_in, PackedFloat const &b_in) {
 #ifndef HLSLIB_SYNTHESIS
     // We better not be getting subnormal inputs
     assert(a.IsZero() || IsMostSignificantBitSet(a_mantissa));
-    assert(a.IsZero() || IsMostSignificantBitSet(b_mantissa));
+    assert(b.IsZero() || IsMostSignificantBitSet(b_mantissa));
+    // a is zero => b is zero
+    assert(!a_is_zero || (a_is_zero && a_in_mant_is_zero && b_in_mant_is_zero));
 #endif
 
     const bool subtraction = a.GetSign() != b.GetSign();

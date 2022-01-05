@@ -101,6 +101,10 @@ class PackedFloat {
         return x;
     }
 
+    inline bool IsZero() const {
+        return GetMantissa() == 0;
+    }
+
     Limb GetLimb(const size_t i) const {
         return data_.range((i + 1) * 8 * sizeof(Limb) - 1, i * 8 * sizeof(Limb));
     }
@@ -121,17 +125,24 @@ class PackedFloat {
     }
 
     inline PackedFloat(const mpfr_srcptr num) {
-        // Copy the most significant bytes, padding zeros if necessary
-        const auto mpfr_limbs = (mpfr_get_prec(num) + 8 * sizeof(mp_limb_t) - 1) / (8 * sizeof(mp_limb_t));
-        const size_t mpfr_bytes = mpfr_limbs * sizeof(mp_limb_t);
-        const size_t bytes_to_copy = std::min(mpfr_bytes, size_t(kMantissaBytes));
-        const size_t copy_from = mpfr_bytes - bytes_to_copy;
-        const size_t copy_to = kMantissaBytes - bytes_to_copy;
-        std::memset(reinterpret_cast<char *>(&data_), 0x0, copy_to);
-        std::memcpy(reinterpret_cast<char *>(&data_) + copy_to,
+        // Should we just assume nan/inf can't appear?
+        if (mpfr_regular_p(num)) {
+            // Copy the most significant bytes, padding zeros if necessary
+            const auto mpfr_limbs = (mpfr_get_prec(num) + 8 * sizeof(mp_limb_t) - 1) / (8 * sizeof(mp_limb_t));
+            const size_t mpfr_bytes = mpfr_limbs * sizeof(mp_limb_t);
+            const size_t bytes_to_copy = std::min(mpfr_bytes, size_t(kMantissaBytes));
+            const size_t copy_from = mpfr_bytes - bytes_to_copy;
+            const size_t copy_to = kMantissaBytes - bytes_to_copy;
+            // Doesn't this copy to the LSB of the mantissa?
+            std::memset(reinterpret_cast<char *>(&data_), 0x0, copy_to);
+            std::memcpy(reinterpret_cast<char *>(&data_) + copy_to,
                     reinterpret_cast<uint8_t const *>(num->_mpfr_d) + copy_from, bytes_to_copy);
-        SetExponent(num->_mpfr_exp);
-        SetSign(num->_mpfr_sign < 0);  // 1 if negative, 0 otherwise
+            // Section 5.16 of the MPFR manual suggests the exponent might take on special values
+            SetExponent(mpfr_get_exp(num));
+            SetSign(mpfr_signbit(num) ? 1 : 0);  // 1 if negative, 0 otherwise
+        } else {
+            *this = PackedFloat::Zero();
+        }
     }
 
     inline PackedFloat &operator=(mpf_srcptr num) {
@@ -159,23 +170,38 @@ class PackedFloat {
     }
 
     inline void ToMpfr(mpfr_ptr num) const {
-        // Copy the most significant bytes, padding zeros if necessary
-        const auto mpfr_limbs = (mpfr_get_prec(num) + 8 * sizeof(mp_limb_t) - 1) / (8 * sizeof(mp_limb_t));
-        const size_t mpfr_bytes = mpfr_limbs * sizeof(mp_limb_t);
-        const size_t bytes_to_copy = std::min(mpfr_bytes, size_t(kMantissaBytes));
-        const auto copy_to = mpfr_bytes - bytes_to_copy;
-        const auto copy_from = kMantissaBytes - bytes_to_copy;
-        std::memset(num->_mpfr_d, 0x0, copy_to);
-        std::memcpy(reinterpret_cast<char *>(num->_mpfr_d) + copy_to,
-                    reinterpret_cast<char const *>(&data_) + copy_from, bytes_to_copy);
-        num->_mpfr_exp = GetExponent();
-        num->_mpfr_sign = GetSign() ? mpfr_sign_t(-1) : mpfr_sign_t(1);  // 1 if negative, 0 otherwise
+        // Initialize to 1
+        // Otherwise set_exp explodes when it sees num has the special exponent
+        // [Section 5.16 of the MPFR manual]
+        mpfr_set_ui(num, 1, kRoundingMode);
+        // Scan mantissa to check if it's zero since MPFR has a special zero value
+        if (IsZero()) {
+            mpfr_set_ui(num, 0, kRoundingMode);
+        } else {
+            // Copy the most significant bytes, padding zeros if necessary
+            const auto mpfr_limbs = (mpfr_get_prec(num) + 8 * sizeof(mp_limb_t) - 1) / (8 * sizeof(mp_limb_t));
+            const size_t mpfr_bytes = mpfr_limbs * sizeof(mp_limb_t);
+            const size_t bytes_to_copy = std::min(mpfr_bytes, size_t(kMantissaBytes));
+            const auto copy_to = mpfr_bytes - bytes_to_copy;
+            const auto copy_from = kMantissaBytes - bytes_to_copy;
+            std::memset(num->_mpfr_d, 0x0, copy_to);
+            std::memcpy(reinterpret_cast<char *>(num->_mpfr_d) + copy_to,
+                reinterpret_cast<char const *>(&data_) + copy_from, bytes_to_copy);
+            // Returns nonzero is exponent is not in range
+            if (mpfr_set_exp(num, GetExponent())) {
+                // The only way this can happen is if we hit the magic exponent for NaN/Zero/Inf
+                // So flush to zero for now
+                mpfr_set_ui(num, 0, kRoundingMode);
+            }
+            // 1 if negative, 0 otherwise
+            mpfr_setsign(num, num, GetSign(), kRoundingMode);
+        }
     }
 #endif  // End interoperability with GMP
 
     inline std::string ToString() const {
         std::stringstream ss;
-        ss << ((Sign() < 0) ? "-" : "+") << std::hex;
+        ss << ((GetSign() != 0) ? "-" : "+") << std::hex;
         constexpr auto i_end = kMantissaBytes / sizeof(Limb);
         static_assert(kMantissaBytes % sizeof(Limb) == 0, "Mantissa size must be a multiple of the limb size.");
         for (size_t i = 0; i < i_end; ++i) {
@@ -185,7 +211,12 @@ class PackedFloat {
         return ss.str();
     }
 
+
     inline bool operator==(PackedFloat const &rhs) const {
+        // This passes -0 == 0 but right now we blow away the sign bit in the conversions of singular values anyway
+        if(IsZero() && rhs.IsZero()) {
+            return true;
+        }
         if ((GetSign() == 0) != (rhs.GetSign() == 0)) {
             return false;
         }

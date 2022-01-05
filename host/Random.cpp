@@ -30,13 +30,24 @@ void RandomNumberGenerator::GenerateMpfr(mpfr_ptr num) {
 void RandomNumberGenerator::Generate(mpfr_ptr num) {
     std::unique_lock<std::mutex> lock(mutex_);
     mpfr_urandom(num, state_, kRoundingMode);
-
-    // randomly flip sign bit
-    mpfr_setsign(num, num, (small_rng_() < neg_frac_ ? 1 : 0), kRoundingMode);
     
     // Set exponent
-    auto exp = exp_distr_(small_rng_);
+    int exp = exp_distr_(small_rng_);
+    if (u01_distr_(small_rng_) < 0.5) {
+        exp = -exp;
+    }
     mpfr_set_exp(num, exp);
+
+    if(u01_distr_(small_rng_) < kZerosFraction) {
+        mpfr_set_ui(num, 0, kRoundingMode);
+    }
+
+    if(u01_distr_(small_rng_) < kOnesFraction) {
+        mpfr_set_ui(num, 1, kRoundingMode);
+    }
+
+    // randomly flip sign bit
+    mpfr_setsign(num, num, (u01_distr_(small_rng_) < kNegFraction ? 1 : 0), kRoundingMode);
 }
 
 void RandomNumberGenerator::Generate(mpf_ptr num) {

@@ -9,7 +9,7 @@
 #include "PackedFloat.h"
 #include "Random.h"
 
-constexpr auto kNumRandom = 512;
+constexpr auto kNumRandom = 16384;
 
 TEST_CASE("PackedFloat to/from GMP Conversion") {
     // Simple example
@@ -84,13 +84,11 @@ TEST_CASE("PackedFloat to/from MPFR Conversion") {
         mpfr_init2(mpfr_num_b, 8 * sizeof(Mantissa));
         for (int i = 0; i < kNumRandom; ++i) {
             rng.Generate(mpfr_num_a);
-            const int mpfr_bytes = std::abs(mpfr_num_a->_mpfr_prec) / 8;
-            const size_t offset = std::max(mpfr_bytes - kMantissaBytes, 0);
             num = mpfr_num_a;
             num.ToMpfr(mpfr_num_b);
-            REQUIRE(mpfr_num_b->_mpfr_exp == mpfr_num_a->_mpfr_exp);
-            REQUIRE(std::memcmp(reinterpret_cast<uint8_t const *>(mpfr_num_a->_mpfr_d) + offset, mpfr_num_b->_mpfr_d,
-                                std::min(mpfr_bytes, kMantissaBytes)) == 0);
+            // The conversion through PackedFloat only works for non-singular numbers
+            // We have to check via MPFR because the values in the limbs may get clobbered
+            REQUIRE(mpfr_equal_p(mpfr_num_a, mpfr_num_b));
             REQUIRE(PackedFloat(mpfr_num_b) == num);
         }
     }
@@ -212,6 +210,7 @@ TEST_CASE("Add MPFR") {
         rng.Generate(mpfr_num_a);
         rng.Generate(mpfr_num_b);
         mpfr_add(mpfr_num_c, mpfr_num_a, mpfr_num_b, kRoundingMode);
+        CAPTURE(PackedFloat(mpfr_num_a), PackedFloat(mpfr_num_b));
         REQUIRE(PackedFloat(mpfr_num_c) == Add(PackedFloat(mpfr_num_a), PackedFloat(mpfr_num_b)));
     }
     // Accumulate
@@ -239,6 +238,7 @@ TEST_CASE("Multiply MPFR") {
         rng.Generate(mpfr_num_a);
         rng.Generate(mpfr_num_b);
         mpfr_mul(mpfr_num_c, mpfr_num_a, mpfr_num_b, kRoundingMode);
+        CAPTURE(PackedFloat(mpfr_num_a), PackedFloat(mpfr_num_b));
         REQUIRE(PackedFloat(mpfr_num_c) == Multiply(PackedFloat(mpfr_num_a), PackedFloat(mpfr_num_b)));
     }
     mpfr_set_si(mpfr_num_c, 0, kRoundingMode);
@@ -251,6 +251,7 @@ TEST_CASE("Multiply MPFR") {
             num = PackedFloat(mpfr_num_c);
         }
         mpfr_mul(mpfr_num_c, mpfr_num_a, mpfr_num_c, kRoundingMode);
+        CAPTURE(PackedFloat(num), PackedFloat(mpfr_num_a));
         num = Multiply(num, PackedFloat(mpfr_num_a));
         REQUIRE(PackedFloat(mpfr_num_c) == num);
     }
@@ -272,6 +273,7 @@ TEST_CASE("MultiplyAccumulate MPFR") {
         rng.Generate(mpfr_num_c);
         mpfr_mul(mpfr_num_tmp, mpfr_num_a, mpfr_num_b, kRoundingMode);
         mpfr_add(mpfr_num_tmp, mpfr_num_c, mpfr_num_tmp, kRoundingMode);
+        CAPTURE(PackedFloat(mpfr_num_a), PackedFloat(mpfr_num_b), PackedFloat(mpfr_num_c));
         REQUIRE(PackedFloat(mpfr_num_tmp) ==
                 MultiplyAccumulate(PackedFloat(mpfr_num_a), PackedFloat(mpfr_num_b), PackedFloat(mpfr_num_c)));
     }

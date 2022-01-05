@@ -96,41 +96,43 @@ PackedFloat Add(PackedFloat const &a_in, PackedFloat const &b_in) {
     // Xilinx permits signed shifts
     // We want to keep an extra bit of precision (LSB) to properly round the output
     // We also want an extra bit of range (MSB) to track overflow
+    // The names in the following code segment have _msb/_lsb suffix if they have the extra msb/lsb respectively
     auto a_mantissa_shifted = static_cast<ap_uint<kMantissaBits + 2>>(a_mantissa) << 1;
     auto b_mantissa_shifted = (static_cast<ap_uint<kMantissaBits + 2>>(b_mantissa) << 1) >> shift_m;
 
     // Now we can add up the aligned mantissas
     // ==== Add/Sub mantissas ====
-    // Truncate the last bit (round towards zero)
-    const ap_uint<kMantissaBits + 1> ab_sum = (a_mantissa_shifted + b_mantissa_shifted) >> 1;
+    // We cannot truncate yet because of the renormalization step
+    const ap_uint<kMantissaBits + 2> ab_sum_lsb_msb = (a_mantissa_shifted + b_mantissa_shifted);
 #pragma HLS BIND_OP variable = ab_sum op = add impl = fabric latency = 4
 
     // This returns an ap_int but the answer is always positive so the MSB is never set
     // Xilinx manual states signed <-> unsigned ignores the sign and converts bit for bit
     // Widening assignments and right shifts of ap_int are sign extended so we specify the casting route
     assert(a_mantissa_shifted >= b_mantissa_shifted);
-    const ap_uint<kMantissaBits + 1> ab_abs_diff =
-        static_cast<ap_uint<kMantissaBits + 2>>(a_mantissa_shifted - b_mantissa_shifted) >> 1;
+    const ap_uint<kMantissaBits + 2> ab_diff_lsb_msb =
+        static_cast<ap_uint<kMantissaBits + 2>>(a_mantissa_shifted - b_mantissa_shifted);
 #pragma HLS BIND_OP variable = ab_abs_diff op = sub impl = fabric latency = 4
-    assert(!IsMostSignificantBitSet(ab_abs_diff));
+    assert(!IsMostSignificantBitSet(ab_diff_lsb_msb));
 
     // ==== overflow check ====
 
     // If the addition overflowed, we need to shift and increment the exponent
     // We could just do the right shift and let the mantissa normalization step fix up the exponent
-    const auto _res_mantissa = subtraction ? ab_abs_diff : ab_sum;
+    const auto _res_mantissa_lsb_msb = subtraction ? ab_diff_lsb_msb : ab_sum_lsb_msb;
 
-    const bool addition_overflowed = IsMostSignificantBitSet(_res_mantissa);
-    ap_uint<kMantissaBits> res_mantissa = addition_overflowed ? (_res_mantissa >> 1) : _res_mantissa;
+    const bool addition_overflowed = IsMostSignificantBitSet(_res_mantissa_lsb_msb);
+    // We're still holding onto the extra lsb
+    const ap_uint<kMantissaBits+1> res_mantissa_lsb = addition_overflowed ? (_res_mantissa_lsb_msb >> 1) : _res_mantissa_lsb_msb;
     res_exponent = res_exponent + (addition_overflowed ? 1 : 0);
 
     // ==== Renormalize / Underflow ====
     // Normalize the mantissa
-    bool res_nonzero = res_mantissa != 0;
-    const Exponent leading_zeros = res_nonzero ? CountLeadingZeros(res_mantissa) : kMantissaBits;
+    bool res_nonzero = res_mantissa_lsb != 0;
+    const Exponent leading_zeros = res_nonzero ? CountLeadingZeros(res_mantissa_lsb) : kMantissaBits;
 
-    // Left shift by the number of leading zeros
-    res_mantissa = res_nonzero ? (res_mantissa << leading_zeros) : decltype(res_mantissa)(0);
+    // Left shift by the number of leading zeros and truncate the lsb now
+    ap_uint<kMantissaBits> res_mantissa = (res_nonzero ? (res_mantissa_lsb << leading_zeros) : decltype(res_mantissa_lsb)(0)) >> 1;
 
     // We need to watch for underflow here
     const bool underflow = res_exponent < std::numeric_limits<Exponent>::min() + leading_zeros;

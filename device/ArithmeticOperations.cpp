@@ -12,7 +12,6 @@ inline bool IsLastBitSet(ap_uint<bits> const &num) {
 }
 
 PackedFloat Multiply(PackedFloat const &a, PackedFloat const &b) {
-#pragma HLS INLINE
     // Pad mantissas to avoid passing awkward sizes to Karatsuba
     const ap_uint<kBits> a_mantissa_padded(a.GetMantissa());
     const ap_uint<kBits> b_mantissa_padded(b.GetMantissa());
@@ -42,8 +41,6 @@ PackedFloat Multiply(PackedFloat const &a, PackedFloat const &b) {
 }
 
 PackedFloat Add(PackedFloat const &a, PackedFloat const &b) {
-#pragma HLS INLINE
-
     // Figure out how much we need to shift by
     ap_uint<kMantissaBits> a_mantissa(a.GetMantissa());
     ap_uint<kMantissaBits> b_mantissa(b.GetMantissa());

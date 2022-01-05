@@ -101,15 +101,6 @@ class PackedFloat {
         return x;
     }
 
-    /// Slightly looser comparison where zero values are allowed to differ in the sign and exponent
-    inline bool EquivCompare(PackedFloat const &rhs) {
-        if(IsZero() && rhs.IsZero()) {
-            return true;
-        } else {
-            return *this == rhs;
-        }
-    }
-
     inline bool IsZero() const {
         return GetMantissa() == 0;
     }
@@ -222,6 +213,10 @@ class PackedFloat {
 
 
     inline bool operator==(PackedFloat const &rhs) const {
+        // This passes -0 == 0 but right now we blow away the sign bit in the conversions of singular values anyway
+        if(IsZero() && rhs.IsZero()) {
+            return true;
+        }
         if ((GetSign() == 0) != (rhs.GetSign() == 0)) {
             return false;
         }

@@ -89,7 +89,7 @@ TEST_CASE("PackedFloat to/from MPFR Conversion") {
             // The conversion through PackedFloat only works for non-singular numbers
             // We have to check via MPFR because the values in the limbs may get clobbered
             REQUIRE(mpfr_equal_p(mpfr_num_a, mpfr_num_b));
-            REQUIRE(PackedFloat(mpfr_num_b).EquivCompare(num));
+            REQUIRE(PackedFloat(mpfr_num_b) == num);
         }
     }
 }
@@ -239,7 +239,7 @@ TEST_CASE("Multiply MPFR") {
         rng.Generate(mpfr_num_b);
         mpfr_mul(mpfr_num_c, mpfr_num_a, mpfr_num_b, kRoundingMode);
         CAPTURE(PackedFloat(mpfr_num_a), PackedFloat(mpfr_num_b));
-        REQUIRE(PackedFloat(mpfr_num_c).EquivCompare(Multiply(PackedFloat(mpfr_num_a), PackedFloat(mpfr_num_b))));
+        REQUIRE(PackedFloat(mpfr_num_c) == Multiply(PackedFloat(mpfr_num_a), PackedFloat(mpfr_num_b)));
     }
     mpfr_set_si(mpfr_num_c, 0, kRoundingMode);
     num = PackedFloat(mpfr_num_c);
@@ -253,7 +253,7 @@ TEST_CASE("Multiply MPFR") {
         mpfr_mul(mpfr_num_c, mpfr_num_a, mpfr_num_c, kRoundingMode);
         CAPTURE(PackedFloat(num), PackedFloat(mpfr_num_a));
         num = Multiply(num, PackedFloat(mpfr_num_a));
-        REQUIRE(PackedFloat(mpfr_num_c).EquivCompare(num));
+        REQUIRE(PackedFloat(mpfr_num_c) == num);
     }
     mpfr_clear(mpfr_num_a);
     mpfr_clear(mpfr_num_b);
@@ -274,8 +274,8 @@ TEST_CASE("MultiplyAccumulate MPFR") {
         mpfr_mul(mpfr_num_tmp, mpfr_num_a, mpfr_num_b, kRoundingMode);
         mpfr_add(mpfr_num_tmp, mpfr_num_c, mpfr_num_tmp, kRoundingMode);
         CAPTURE(PackedFloat(mpfr_num_a), PackedFloat(mpfr_num_b), PackedFloat(mpfr_num_c));
-        REQUIRE(PackedFloat(mpfr_num_tmp).EquivCompare(
-                MultiplyAccumulate(PackedFloat(mpfr_num_a), PackedFloat(mpfr_num_b), PackedFloat(mpfr_num_c))));
+        REQUIRE(PackedFloat(mpfr_num_tmp) ==
+                MultiplyAccumulate(PackedFloat(mpfr_num_a), PackedFloat(mpfr_num_b), PackedFloat(mpfr_num_c)));
     }
     mpfr_clear(mpfr_num_a);
     mpfr_clear(mpfr_num_b);

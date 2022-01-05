@@ -10,7 +10,6 @@ constexpr int AddLatency(int bits) {
 template <int bits>
 auto _Karatsuba(ap_uint<bits> const &a, ap_uint<bits> const &b) ->
     typename std::enable_if<(bits > kMultBaseBits), ap_uint<2 * bits>>::type {
-#pragma HLS INLINE
     static_assert(bits % 2 == 0, "Number of bits must be even.");
     using Full = ap_uint<bits>;
     using Half = ap_uint<bits / 2>;

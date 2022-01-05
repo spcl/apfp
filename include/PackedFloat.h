@@ -2,14 +2,12 @@
 
 #include <algorithm>  // std::min
 #include <cassert>
-#include <cstdint>  // uint8_t
 #include <cstring>  // std::memcpy
 #include <iomanip>  // std::setfill, std::setw
-#include <iostream>
 #include <sstream>
 
 #include "Config.h"
-#include "Types.h"
+#include "DeviceTypes.h"
 
 using MantissaFlat = ap_uint<kMantissaBits>;
 
@@ -19,6 +17,7 @@ class PackedFloat {
    public:
     inline PackedFloat() {
         // Leave stuff uninitialized by default
+#pragma HLS INLINE
     }
 
     // Use default copy/move constructors and assignments
@@ -87,7 +86,7 @@ class PackedFloat {
         data_.range((i + 1) * 512 - 1, i * 512) = flit;
     }
 
-    void operator>>(DramLine flits[kLinesPerNumber]) const {
+    void UnpackFlits(DramLine flits[kLinesPerNumber]) const {
 #pragma HLS INLINE
         for (int i = 0; i < kLinesPerNumber; ++i) {
 #pragma HLS UNROLL
@@ -213,7 +212,7 @@ class PackedFloat {
         std::stringstream ss;
         ss << ((GetSign() != 0) ? "-" : "+") << std::hex;
         constexpr auto i_end = kMantissaBytes / sizeof(Limb);
-        static_assert(kMantissaBytes % sizeof(Limb) == 0);
+        static_assert(kMantissaBytes % sizeof(Limb) == 0, "Mantissa size must be a multiple of the limb size.");
         for (size_t i = 0; i < i_end; ++i) {
             ss << std::setfill('0') << std::setw(2 * sizeof(Limb)) << GetLimb(i) << "|";
         }

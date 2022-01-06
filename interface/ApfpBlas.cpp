@@ -114,11 +114,11 @@ void CopyToMatrix(unsigned long N, unsigned long K, ptr_function_type A, unsigne
 }
 
 template <typename ptr_function_type_a, typename ptr_function_type_c>
-int ApfpSyrkImpl(BlasUplo uplo, BlasTrans trans, unsigned long N, unsigned long K, ptr_function_type_a A,
+int SyrkImpl(BlasUplo uplo, BlasTrans trans, unsigned long N, unsigned long K, ptr_function_type_a A,
                  unsigned long LDA, ptr_function_type_c C, unsigned long LDC) {
     try {
         // ==== library input validation stuff ====
-        if (!ApfpIsInitialized()) {
+        if (!IsInitialized()) {
             return BlasError::uninitialized;
         }
 
@@ -188,12 +188,12 @@ int Syrk(BlasUplo uplo, BlasTrans trans, unsigned long N, unsigned long K, inter
          interface::Ptr C, unsigned long LDC) {
     auto a_ptr_function = [&](unsigned long i) -> interface::ConstPtr { return A + i; };
     auto c_ptr_function = [&](unsigned long i) -> interface::Ptr { return C + i; };
-    return ApfpSyrkImpl(uplo, trans, N, K, a_ptr_function, LDA, c_ptr_function, LDC);
+    return SyrkImpl(uplo, trans, N, K, a_ptr_function, LDA, c_ptr_function, LDC);
 }
 
 int Syrk(BlasUplo uplo, BlasTrans trans, unsigned long N, unsigned long K, ConstIndexFunction A, unsigned long LDA,
          IndexFunction C, unsigned long LDC) {
-    return ApfpSyrkImpl(uplo, trans, N, K, A, LDA, C, LDC);
+    return SyrkImpl(uplo, trans, N, K, A, LDA, C, LDC);
 }
 
 }  // namespace apfp

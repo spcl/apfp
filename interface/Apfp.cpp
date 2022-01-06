@@ -39,6 +39,7 @@ std::string Apfp::FindKernel() {
 
     {
         std::vector<std::filesystem::path> search_paths;
+        search_paths.push_back(std::filesystem::current_path());
         search_paths.push_back(std::filesystem::path(kInstallPrefix));
 
         // Search

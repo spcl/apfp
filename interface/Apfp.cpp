@@ -24,7 +24,7 @@ std::string Context::FindKernel() {
             auto kernel_override_path = std::filesystem::path(apfp_kernel_env_var);
 
             if (!std::filesystem::exists(kernel_override_path)) {
-                throw std::runtime_error(
+                throw KernelNotFoundException(
                     "APFP kernel path specified with APFP_KERNEL environment variable does not exist");
             }
             return kernel_override_path.string();

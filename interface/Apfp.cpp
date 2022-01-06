@@ -11,13 +11,13 @@
 
 namespace apfp {
 
-Apfp::Apfp() {
+Context::Context() {
     auto kernel_path = FindKernel();
     program_.emplace(context_.MakeProgram(kernel_path));
     lines_per_number_ = kLinesPerNumber;
 }
 
-std::string Apfp::FindKernel() {
+std::string Context::FindKernel() {
     {  // Specify a path to the APFP kernel manually
         char* apfp_kernel_env_var = std::getenv("APFP_KERNEL");
         if (apfp_kernel_env_var != nullptr) {
@@ -54,7 +54,7 @@ std::string Apfp::FindKernel() {
     throw KernelNotFoundException("Unable to find FPGA kernel");
 }
 
-DeviceMatrix Apfp::AllocateDeviceMatrix(std::size_t rows, std::size_t cols) {
+DeviceMatrix Context::AllocateDeviceMatrix(std::size_t rows, std::size_t cols) {
     // This seems like poor encapsulation, is there a better way?
 
     DeviceMatrix matrix;
@@ -64,13 +64,13 @@ DeviceMatrix Apfp::AllocateDeviceMatrix(std::size_t rows, std::size_t cols) {
     return matrix;
 }
 
-DeviceMatrix Apfp::MatrixMultiplication(const DeviceMatrix& a, const DeviceMatrix& b) {
+DeviceMatrix Context::MatrixMultiplication(const DeviceMatrix& a, const DeviceMatrix& b) {
     auto result = AllocateDeviceMatrix(a.rows(), b.cols());
     MatrixMultiplication(a, b, &result);
     return result;
 }
 
-void Apfp::MatrixMultiplication(const DeviceMatrix& a, const DeviceMatrix& b, DeviceMatrix* result) {
+void Context::MatrixMultiplication(const DeviceMatrix& a, const DeviceMatrix& b, DeviceMatrix* result) {
     if (a.cols() != b.rows() || result->rows() != a.rows() || result->cols() != b.cols()) {
         throw std::logic_error("Matrix dimension mismatch");
     }
@@ -80,15 +80,15 @@ void Apfp::MatrixMultiplication(const DeviceMatrix& a, const DeviceMatrix& b, De
     kernel.ExecuteTask();
 }
 
-void Apfp::MatrixAddition(const DeviceMatrix&, const DeviceMatrix&, DeviceMatrix*) {
+void Context::MatrixAddition(const DeviceMatrix&, const DeviceMatrix&, DeviceMatrix*) {
     throw UnimplementedException();
 }
 
-void Apfp::TransposeInPlace(DeviceMatrix*) {
+void Context::TransposeInPlace(DeviceMatrix*) {
     throw UnimplementedException();
 }
 
-DeviceMatrix Apfp::Transpose(const DeviceMatrix&) {
+DeviceMatrix Context::Transpose(const DeviceMatrix&) {
     throw UnimplementedException();
 }
 

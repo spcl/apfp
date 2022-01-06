@@ -8,7 +8,7 @@
 
 namespace apfp {
 
-static std::optional<Apfp> apfp;
+static std::optional<Context> apfp;
 static std::string last_error_message;
 
 int Init(unsigned long precision) {

@@ -14,7 +14,7 @@ namespace apfp {
 class DeviceMatrix;
 
 /// Object oriented interface for Apfp
-class Apfp {
+class Context {
     hlslib::ocl::Context context_;
     std::optional<hlslib::ocl::Program> program_;
 
@@ -23,7 +23,7 @@ class Apfp {
     static std::string FindKernel();
 
    public:
-    Apfp();
+    Context();
 
     /// Allocate a buffer on the device
     DeviceMatrix AllocateDeviceMatrix(std::size_t rows, std::size_t cols);
@@ -45,13 +45,13 @@ class Apfp {
 };
 
 /// Helper class to track matrices on the device
-/// We should probably refactor the interface to Apfp to something more controlled?
+/// We should probably refactor the interface to Context to something more controlled?
 class DeviceMatrix {
     std::size_t num_rows_;
     std::size_t num_cols_;
     hlslib::ocl::Buffer<DramLine, hlslib::ocl::Access::readWrite> buffer_;
 
-    friend Apfp;
+    friend Context;
 
     DeviceMatrix() = default;
 

@@ -7,13 +7,14 @@
 
 namespace apfp {
 
-enum BlasError : int {
+enum class BlasError : int {
     success = 0,
     unknown = 1,
     unimplemented = 2,
     bitwidth = 3,
     uninitialized = 4,
     kernel_not_found = 5,
+    argument_error = 6,
 };
 
 enum class BlasUplo : char { upper = 'U', lower = 'L' };
@@ -23,12 +24,16 @@ enum class BlasTrans : char {
     transpose = 'T',
 };
 
+
 using IndexFunction = std::function<interface::Ptr(unsigned long)>;
 using ConstIndexFunction = std::function<interface::ConstPtr(unsigned long)>;
-
 /// Null terminated string describing the most recent library error if available
 /// Pointer is only guaranteed to live until the next library call
 const char* ErrorDescription();
+
+/// Convert a return code to a BlasError type
+/// Negative return codes are converted to BlasError::argument_error
+BlasError InterpretError(int a);
 
 int Init(unsigned long precision);
 

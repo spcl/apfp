@@ -16,25 +16,25 @@ int Init(unsigned long precision) {
         if (precision > kBits) {
             // Requested bit width too large
             last_error_message = "Requested bitwidth too large";
-            return BlasError::bitwidth;
+            return static_cast<int>(BlasError::bitwidth);
         }
         apfp.emplace();
-        return BlasError::success;
+        return static_cast<int>(BlasError::success);
 
     } catch (const KernelNotFoundException& e) {
         last_error_message = e.what();
-        return BlasError::kernel_not_found;
+        return static_cast<int>(BlasError::kernel_not_found);
 
     } catch (const std::exception& e) {
         // Unknown exception
         last_error_message = e.what();
-        return BlasError::unknown;
+        return static_cast<int>(BlasError::unknown);
     }
 }
 
 int Finalize() {
     apfp.reset();
-    return BlasError::success;
+    return static_cast<int>(BlasError::success);
 }
 
 bool IsInitialized() {
@@ -43,6 +43,10 @@ bool IsInitialized() {
 
 const char* ErrorDescription() {
     return last_error_message.c_str();
+}
+
+BlasError InterpretError(int a) {
+    return a < 0 ? BlasError::argument_error : static_cast<BlasError>(a);
 }
 
 /// Copy the upper or lower triangle from an NxN matrix A to a full size buffer
@@ -119,7 +123,7 @@ int SyrkImpl(BlasUplo uplo, BlasTrans trans, unsigned long N, unsigned long K, p
     try {
         // ==== library input validation stuff ====
         if (!IsInitialized()) {
-            return BlasError::uninitialized;
+            return static_cast<int>(BlasError::uninitialized);
         }
 
         // A is NxK if 'N', KxN if 'T'
@@ -142,10 +146,10 @@ int SyrkImpl(BlasUplo uplo, BlasTrans trans, unsigned long N, unsigned long K, p
 
         // Empty matrix no-op
         if (N == 0) {
-            return BlasError::success;
+            return static_cast<int>(BlasError::success);
         }
         if (K == 0) {
-            return BlasError::success;
+            return static_cast<int>(BlasError::success);
         }
 
         // ==== setup ====
@@ -177,10 +181,10 @@ int SyrkImpl(BlasUplo uplo, BlasTrans trans, unsigned long N, unsigned long K, p
         CopyToMatrixUplo(uplo, N, C, LDC, host_c.data());
     } catch (const std::exception& e) {
         last_error_message = e.what();
-        return BlasError::unknown;
+        return static_cast<int>(BlasError::unknown);
     }
 
-    return BlasError::success;
+    return static_cast<int>(BlasError::success);
 }
 
 /// See netlib's documentation on Syrk for usage. Alpha and beta unsupported

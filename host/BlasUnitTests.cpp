@@ -17,7 +17,7 @@ void ApfpSetup() {
     mpfr_set_default_prec(kMantissaBits);
 #endif
     auto apfp_error_code = apfp::Init(kMantissaBits);
-    REQUIRE(apfp_error_code == apfp::BlasError::success);
+    REQUIRE(apfp_error_code);
 }
 
 void ApfpTeardown() {
@@ -119,7 +119,7 @@ TEST_CASE("SYRK") {
         auto error_code = apfp::Syrk(
             uplo_mode, mode, N, K, [&](unsigned long i) { return a_matrix.at(i).get(); },
             mode == apfp::BlasTrans::normal ? N : K, [&](unsigned long i) { return c_matrix.at(i).get(); }, N);
-        REQUIRE(error_code == apfp::BlasError::success);
+        REQUIRE(error_code);
 
         // Check all entries are sufficiently close
         apfp::interface::Wrapper diff;

@@ -1,4 +1,5 @@
 #include "ApfpInterfaceType.h"
+#include "DeviceTypes.h"
 
 namespace apfp::interface {
 
@@ -39,7 +40,7 @@ void Set(Ptr dest, ConstPtr source) {
 #ifdef APFP_GMP_INTERFACE_TYPE
     mpf_set(dest, source);
 #else
-    mpfr_set(dest, source, mpfr_get_default_rounding_mode());
+    mpfr_set(dest, source, kRoundingMode);
 #endif
 }
 
@@ -47,7 +48,7 @@ void Set(Ptr dest, long int source) {
 #ifdef APFP_GMP_INTERFACE_TYPE
     mpf_set_ui(dest, source);
 #else
-    mpfr_set_si(dest, source, mpfr_get_default_rounding_mode());
+    mpfr_set_si(dest, source, kRoundingMode);
 #endif
 }
 
@@ -55,7 +56,7 @@ void Add(Ptr dest, ConstPtr a, ConstPtr b) {
 #ifdef APFP_GMP_INTERFACE_TYPE
     mpf_add(dest, a, b);
 #else
-    mpfr_add(dest, a, b, mpfr_get_default_rounding_mode());
+    mpfr_add(dest, a, b, kRoundingMode);
 #endif
 }
 
@@ -63,7 +64,7 @@ void Mul(Ptr dest, ConstPtr a, ConstPtr b) {
 #ifdef APFP_GMP_INTERFACE_TYPE
     mpf_mul(dest, a, b);
 #else
-    mpfr_mul(dest, a, b, mpfr_get_default_rounding_mode());
+    mpfr_mul(dest, a, b, kRoundingMode);
 #endif
 }
 

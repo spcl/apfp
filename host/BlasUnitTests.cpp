@@ -46,10 +46,9 @@ bool IsClose(apfp::interface::ConstPtr a, apfp::interface::ConstPtr b) {
     long exp;
     mpf_get_d_2exp(&exp, ratio.get());
 #else
-    auto rounding_mode = mpfr_get_default_rounding_mode();
-    mpfr_sub(diff.get(), a, b, rounding_mode);
-    mpfr_add(sum.get(), a, b, rounding_mode);
-    mpfr_div(ratio.get(), diff.get(), sum.get(), rounding_mode);
+    mpfr_sub(diff.get(), a, b, kRoundingMode);
+    mpfr_add(sum.get(), a, b, kRoundingMode);
+    mpfr_div(ratio.get(), diff.get(), sum.get(), kRoundingMode);
     auto exp = mpfr_get_exp(ratio.get());
 #endif
     // Require the numbers to match to the first 90% decimal places

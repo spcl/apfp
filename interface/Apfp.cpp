@@ -37,26 +37,9 @@ std::string Apfp::FindKernel() {
     auto kernel_name = std::filesystem::path(apfp_use_simulation ? "MatrixMultiplication_hw_emu.xclbin"
                                                                  : "MatrixMultiplication_hw.xclbin");
 
-    {  // Search for the kernel in /lib, /usr/lib, LD_LIBRARY_PATH, current directory
+    {
         std::vector<std::filesystem::path> search_paths;
-        // System dirs
-        search_paths.push_back(std::filesystem::path("/lib"));
-        search_paths.push_back(std::filesystem::path("/usr/lib"));
-
-        // LD_LIBRARY_PATH
-        char* ld_library_path_env_var = std::getenv("LD_LIBRARY_PATH");
-        auto ld_library_path = (ld_library_path_env_var == nullptr) ? "" : std::string(ld_library_path_env_var);
-
-        for (std::string::iterator seg_begin = ld_library_path.begin(), seg_end; seg_begin < ld_library_path.end();
-             seg_begin = seg_end + 1) {
-            seg_end = std::find(seg_begin, ld_library_path.end(), ':');
-
-            std::string candidate_path(seg_begin, seg_end);
-            search_paths.push_back(std::filesystem::path(candidate_path));
-        }
-
-        // Current working directory
-        search_paths.push_back(std::filesystem::current_path());
+        search_paths.push_back(std::filesystem::path(kInstallPrefix));
 
         // Search
         for (auto candidate_dir : search_paths) {

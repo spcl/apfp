@@ -14,8 +14,10 @@ set(APFP_DEBUGGING OFF CACHE BOOL "Enable debugging in generated kernels.")
 set(APFP_PROFILING OFF CACHE BOOL "Enable profiling in generated kernels.")
 set(APFP_SAVE_TEMPS OFF CACHE BOOL "Save temporary files from kernel builds.")
 set_property(CACHE APFP_SEMANTICS PROPERTY STRINGS GMP MPFR)
-set(APFP_INTERFACE_TYPE "MPFR" CACHE STRING "Which data types to use for the interface [GMP/MPFR].")
-set_property(CACHE APFP_INTERFACE_TYPE PROPERTY STRINGS GMP MPFR)
+
+# One day we might accept both
+set(APFP_INTERFACE_TYPE ${APFP_SEMANTICS})
+# but not today
 
 # Validation and derived numbers
 math(EXPR APFP_ALIGNED "${APFP_BITS} % 512")

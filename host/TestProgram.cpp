@@ -18,10 +18,10 @@ struct MpfrWrapper {
 };
 
 #ifdef HLSLIB_SIMULATE_OPENCL
-bool RunTestSimulation(int size_n, int size_k, int size_m) {
+bool RunTestSimulation(int size_n, int size_k, int size_m, bool verify) {
     const std::string kernel_path("");
 #else
-bool RunTest(std::string const &kernel_path, int size_n, int size_k, int size_m) {
+bool RunTest(std::string const &kernel_path, int size_n, int size_k, int size_m, bool verify) {
 #endif
     hlslib::ocl::Context context;
     std::cout << "Configuring the device..." << std::flush;
@@ -94,6 +94,11 @@ bool RunTest(std::string const &kernel_path, int size_n, int size_k, int size_m)
     std::cout << "Executing kernel...\n";
     const auto elapsed = kernel.ExecuteTask();
     std::cout << "Ran in " << elapsed.first << " seconds.\n";
+
+    if (!verify) {
+        return true;
+    }
+
     // Copy back result
     c_device.CopyToHost(0, kLinesPerNumber * size_n * size_m, reinterpret_cast<DramLine *>(&c_host[0]));
     // Run reference implementation. Because of GMP's "clever" way of wrapping their struct in an array of size 1,
@@ -142,34 +147,58 @@ bool RunTest(std::string const &kernel_path, int size_n, int size_k, int size_m)
 int main(int argc, char **argv) {
 #ifndef HLSLIB_SIMULATE_OPENCL
     // Parse input
-    if (argc < 5) {
-        std::cerr << "Usage: " << argv[0] << " [hw_emu/hw] n k m\n";
+    if (argc < 5 || argc > 6) {
+        std::cerr << "Usage: " << argv[0] << " [hw_emu/hw] n k m <verify [on/off]>\n";
         return 1;
     }
     const std::string mode_str(argv[1]);
     const int size_n = std::stoi(argv[2]);
     const int size_k = std::stoi(argv[3]);
     const int size_m = std::stoi(argv[4]);
+    bool verify = true;
+    if (argc == 6) {
+        const std::string verify_str(argv[5]);
+        if (verify_str == "on") {
+            verify = true;
+        } else if (verify_str == "off") {
+            verify = false;
+        } else {
+            std::cerr << "Expected on/off.\n";
+            return 1;
+        }
+    }
     if (mode_str == "hw_emu") {
         const auto emu_str = "XCL_EMULATION_MODE=hw_emu";
         putenv(const_cast<char *>(emu_str));
         const auto conf_str = std::string("EMCONFIG_PATH=") + kBuildDir;
         putenv(const_cast<char *>(conf_str.c_str()));
-        return !RunTest(kBuildDir + std::string("/MatrixMultiplication_hw_emu.xclbin"), size_n, size_k, size_m);
+        return !RunTest(kBuildDir + std::string("/MatrixMultiplication_hw_emu.xclbin"), size_n, size_k, size_m, verify);
     } else if (mode_str == "hw") {
-        return !RunTest(kBuildDir + std::string("/MatrixMultiplication_hw.xclbin"), size_n, size_k, size_m);
+        return !RunTest(kBuildDir + std::string("/MatrixMultiplication_hw.xclbin"), size_n, size_k, size_m, verify);
     } else {
         throw std::invalid_argument("Invalid mode specified.");
     }
 #else
     // Parse input
-    if (argc < 4) {
-        std::cerr << "Usage: " << argv[0] << " n k m\n";
+    if (argc < 4 || argc > 5) {
+        std::cerr << "Usage: " << argv[0] << " n k m <verify [on/off]>\n";
         return 1;
     }
     const int size_n = std::stoi(argv[1]);
     const int size_k = std::stoi(argv[2]);
     const int size_m = std::stoi(argv[3]);
-    return !RunTestSimulation(size_n, size_k, size_m);
+    bool verify = true;
+    if (argc == 5) {
+        const std::string verify_str(argv[4]);
+        if (verify_str == "on") {
+            verify = true;
+        } else if (verify_str == "off") {
+            verify = false;
+        } else {
+            std::cerr << "Expected on/off.\n";
+            return 1;
+        }
+    }
+    return !RunTestSimulation(size_n, size_k, size_m, verify);
 #endif
 }

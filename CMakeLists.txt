@@ -28,8 +28,9 @@ find_package(Vitis REQUIRED)
 find_package(MPFR REQUIRED)
 find_package(GMP REQUIRED)
 find_package(Threads REQUIRED)
+find_package(OpenMP)  # This is just for running MPFR, so leave as optional
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wpedantic -Wno-unused-label -Wno-unknown-pragmas -Wno-class-memaccess -DAPFP_${APFP_SEMANTICS}_SEMANTICS")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wpedantic -Wno-unused-label -Wno-class-memaccess -Wno-unknown-pragmas -DAPFP_${APFP_SEMANTICS}_SEMANTICS ${OpenMP_CXX_FLAGS}")
 include_directories(${CMAKE_BINARY_DIR} include SYSTEM hlslib/include ${Vitis_INCLUDE_DIRS} )
 
 configure_file(include/Config.h.in Config.h)
@@ -59,11 +60,11 @@ add_vitis_program(MatrixMultiplication ${APFP_PLATFORM}
 
 # Internal library 
 add_library(apfp host/Random.cpp host/MatrixMultiplicationReference.cpp)
-target_link_libraries(apfp ${GMP_LIBRARIES} ${MPFR_LIBRARIES})
+target_link_libraries(apfp ${GMP_LIBRARIES} ${MPFR_LIBRARIES} ${OpenMP_CXX_LIBRARIES})
 
 # Library necessary to run in simulation mode
 add_library(simulation ${APFP_KERNEL_FILES})
-target_compile_options(simulation PRIVATE -Wno-unknown-pragmas -DAP_INT_MAX_W=${APFP_MAX_BITS})
+target_compile_options(simulation PRIVATE -DAP_INT_MAX_W=${APFP_MAX_BITS})
 target_link_libraries(simulation ${CMAKE_THREAD_LIBS_INIT})
 
 add_library(ApfpHostlib SHARED interface/Apfp.cpp)

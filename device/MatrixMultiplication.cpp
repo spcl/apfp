@@ -6,6 +6,11 @@
 
 #include "ArithmeticOperations.h"
 
+// All memory accesses are column-major!
+// I.e. a(i,j) = a[i + LDA * j]
+// AB = sum_k a(i,k) b(k, j) = sum_k a[i + LDA * k] * b[k + LDA * j]
+// LDA (leading dimension of A) = stride
+
 // Annoyingly we have to specialize the innermost loop on whether multiple DRAM flits per number are required or not,
 // because HLS otherwise gets confused by pragmas applied to a loop of size 1 in the latter case.
 template <int lines_per_number>

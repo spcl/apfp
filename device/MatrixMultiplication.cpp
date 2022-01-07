@@ -6,10 +6,15 @@
 
 #include "ArithmeticOperations.h"
 
+// All memory accesses are column-major!
+// I.e. a(i,j) = a[i + LDA * j]
+// AB = sum_k a(i,k) b(k, j) = sum_k a[i + LDA * k] * b[k + LDA * j]
+// LDA (leading dimension of A) = stride
+
 // Annoyingly we have to specialize the innermost loop on whether multiple DRAM flits per number are required or not,
 // because HLS otherwise gets confused by pragmas applied to a loop of size 1 in the latter case.
 template <int lines_per_number>
-void ReadAInner(DramLine const *const mem, hlslib::Stream<PackedFloat> &a_to_feeder, const int size_k, const int n0,
+void ReadAInner(DramLine const *const mem, hlslib::Stream<PackedFloat> &a_to_feeder, const int size_n, const int n0,
                 const int k) {
 #pragma HLS INLINE
     DramLine num[kLinesPerNumber];
@@ -19,7 +24,7 @@ ReadA_N:
         for (int i = 0; i < kLinesPerNumber; ++i) {
 #pragma HLS PIPELINE II = 1
 #pragma HLS LOOP_FLATTEN
-            num[i] = mem[((n0 * kTileSizeN + n1) * size_k + k) * kLinesPerNumber + i];
+            num[i] = mem[((n0 * kTileSizeN + n1) + k * size_n) * kLinesPerNumber + i];
             if (i == kLinesPerNumber - 1) {
                 a_to_feeder.Push(PackedFloat(num));
             }
@@ -28,7 +33,7 @@ ReadA_N:
 }
 
 template <>
-void ReadAInner<1>(DramLine const *const mem, hlslib::Stream<PackedFloat> &a_to_feeder, const int size_k, const int n0,
+void ReadAInner<1>(DramLine const *const mem, hlslib::Stream<PackedFloat> &a_to_feeder, const int size_n, const int n0,
                    const int k) {
 #pragma HLS INLINE
 ReadA_N:
@@ -36,7 +41,7 @@ ReadA_N:
 #pragma HLS PIPELINE II = 1
 #pragma HLS LOOP_FLATTEN
         DramLine num[1];
-        num[0] = mem[(n0 * kTileSizeN + n1) * size_k + k];
+        num[0] = mem[((n0 * kTileSizeN + n1) + k * size_n) * kLinesPerNumber];
         a_to_feeder.Push(PackedFloat(num));
     }
 }
@@ -51,7 +56,7 @@ ReadA_TilesN:
         for (int m0 = 0; m0 < tiles_m; ++m0) {
         ReadA_K:
             for (int k = 0; k < size_k; ++k) {
-                ReadAInner<kLinesPerNumber>(mem, a_to_feeder, size_k, n0, k);
+                ReadAInner<kLinesPerNumber>(mem, a_to_feeder, size_n, n0, k);
             }
         }
     }
@@ -90,7 +95,7 @@ FeedA_TilesN:
 ////////////////////////////////////////////////////////////////////////////////
 
 template <int lines_per_number>
-void ReadBInner(DramLine const *const mem, hlslib::Stream<PackedFloat> &b_to_feeder, const int size_m, const int m0,
+void ReadBInner(DramLine const *const mem, hlslib::Stream<PackedFloat> &b_to_feeder, const int size_k, const int m0,
                 const int k) {
 #pragma HLS INLINE
     DramLine num[kLinesPerNumber];
@@ -100,7 +105,7 @@ ReadB_M:
         for (int i = 0; i < kLinesPerNumber; ++i) {
 #pragma HLS PIPELINE II = 1
 #pragma HLS LOOP_FLATTEN
-            num[i] = mem[(k * size_m + m0 * kTileSizeM + m1) * kLinesPerNumber + i];
+            num[i] = mem[(k + (m0 * kTileSizeM + m1) * size_k) * kLinesPerNumber + i];
             if (i == kLinesPerNumber - 1) {
                 b_to_feeder.Push(PackedFloat(num));
             }
@@ -109,7 +114,7 @@ ReadB_M:
 }
 
 template <>
-void ReadBInner<1>(DramLine const *const mem, hlslib::Stream<PackedFloat> &b_to_feeder, const int size_m, const int m0,
+void ReadBInner<1>(DramLine const *const mem, hlslib::Stream<PackedFloat> &b_to_feeder, const int size_k, const int m0,
                    const int k) {
 #pragma HLS INLINE
 ReadB_M:
@@ -117,7 +122,7 @@ ReadB_M:
 #pragma HLS PIPELINE II = 1
 #pragma HLS LOOP_FLATTEN
         DramLine num[1];
-        num[0] = mem[k * size_m + m0 * kTileSizeM + m1];
+        num[0] = mem[(k + (m0 * kTileSizeM + m1) * size_k) * kLinesPerNumber];
         b_to_feeder.Push(PackedFloat(num));
     }
 }
@@ -132,7 +137,7 @@ ReadB_TilesN:
         for (int m0 = 0; m0 < tiles_m; ++m0) {
         ReadB_K:
             for (int k = 0; k < size_k; ++k) {
-                ReadBInner<kLinesPerNumber>(mem, b_to_feeder, size_m, m0, k);
+                ReadBInner<kLinesPerNumber>(mem, b_to_feeder, size_k, m0, k);
             }
         }
     }
@@ -169,7 +174,7 @@ FeedB_TilesN:
 ////////////////////////////////////////////////////////////////////////////////
 
 template <int lines_per_number>
-void ReadCInner(DramLine const *const mem, hlslib::Stream<PackedFloat> &c_to_feeder, const int size_m, const int n0,
+void ReadCInner(DramLine const *const mem, hlslib::Stream<PackedFloat> &c_to_feeder, const int size_n, const int n0,
                 const int m0, const int n1) {
 #pragma HLS INLINE
 ReadC_M:
@@ -179,7 +184,7 @@ ReadC_M:
         for (int i = 0; i < kLinesPerNumber; ++i) {
 #pragma HLS PIPELINE II = 1
 #pragma HLS LOOP_FLATTEN
-            num[i] = mem[((n0 * kTileSizeN + n1) * size_m + m0 * kTileSizeM + m1) * kLinesPerNumber + i];
+            num[i] = mem[((n0 * kTileSizeN + n1) + (m0 * kTileSizeM + m1) * size_n) * kLinesPerNumber + i];
             if (i == kLinesPerNumber - 1) {
                 c_to_feeder.Push(PackedFloat(num));
             }
@@ -188,7 +193,7 @@ ReadC_M:
 }
 
 template <>
-void ReadCInner<1>(DramLine const *const mem, hlslib::Stream<PackedFloat> &c_to_feeder, const int size_m, const int n0,
+void ReadCInner<1>(DramLine const *const mem, hlslib::Stream<PackedFloat> &c_to_feeder, const int size_n, const int n0,
                    const int m0, const int n1) {
 #pragma HLS INLINE
 ReadC_M:
@@ -196,7 +201,7 @@ ReadC_M:
 #pragma HLS PIPELINE II = 1
 #pragma HLS LOOP_FLATTEN
         DramLine num[1];
-        num[0] = mem[(n0 * kTileSizeN + n1) * size_m + m0 * kTileSizeM + m1];
+        num[0] = mem[((n0 * kTileSizeN + n1) + (m0 * kTileSizeM + m1) * size_n) * kLinesPerNumber];
         c_to_feeder.Push(PackedFloat(num));
     }
 }
@@ -210,7 +215,7 @@ ReadC_TilesN:
         for (int m0 = 0; m0 < tiles_m; ++m0) {
         ReadC_N:
             for (int n1 = 0; n1 < kTileSizeN; ++n1) {
-                ReadCInner<kLinesPerNumber>(mem, c_to_feeder, size_m, n0, m0, n1);
+                ReadCInner<kLinesPerNumber>(mem, c_to_feeder, size_n, n0, m0, n1);
             }
         }
     }
@@ -290,7 +295,7 @@ WriteC_M:
             }
             const bool in_bounds = (n0 * kTileSizeN + n1 < size_n) && (m0 * kTileSizeM + m1 < size_m);
             if (in_bounds) {
-                mem[((n0 * kTileSizeN + n1) * size_m + m0 * kTileSizeM + m1) * kLinesPerNumber + i] = num[i];
+                mem[((n0 * kTileSizeN + n1) + (m0 * kTileSizeM + m1) * size_n) * kLinesPerNumber + i] = num[i];
             }
         }
     }
@@ -308,7 +313,7 @@ WriteC_M:
         from_kernel.Pop().UnpackFlits(num);
         const bool in_bounds = (n0 * kTileSizeN + n1 < size_n) && (m0 * kTileSizeM + m1 < size_m);
         if (in_bounds) {
-            mem[(n0 * kTileSizeN + n1) * size_m + m0 * kTileSizeM + m1] = num[0];
+            mem[((n0 * kTileSizeN + n1) + (m0 * kTileSizeM + m1) * size_n) * kLinesPerNumber] = num[0];
         }
     }
 }
@@ -354,7 +359,7 @@ Compute_TilesN:
                         const PackedFloat c_read = c_in.Pop();
                         const PackedFloat a = (m1 == 0) ? a_read : a_buffer;
                         const PackedFloat b = (n1 == 0) ? b_read : b_buffer[m1];
-                        const PackedFloat c = (k == 0) ? c_read : c_buffer[n1 * kTileSizeM + m1];
+                        const PackedFloat c = (k == 0) ? c_read : c_buffer[n1 + m1 * kTileSizeN];
                         a_buffer = a;
                         b_buffer[m1] = b;
                         // Ignore contributions from out-of-bound indices
@@ -363,7 +368,7 @@ Compute_TilesN:
                         const auto res = MultiplyAccumulate(in_bounds ? a : PackedFloat::Zero(),
                                                             in_bounds ? b : PackedFloat::Zero(), c);
                         // Write back to buffer
-                        c_buffer[n1 * kTileSizeM + m1] = res;
+                        c_buffer[n1 + m1 * kTileSizeN] = res;
                         c_out.Push(res);
                     }
                 }

@@ -2,23 +2,28 @@
 #include <gmp.h>
 #include <hlslib/xilinx/OpenCL.h>
 
+#include <functional>
 #include <optional>
 
+#include "ApfpInterfaceType.h"
 #include "MatrixMultiplication.h"
 #include "PackedFloat.h"
+
+namespace apfp {
 
 class DeviceMatrix;
 
 /// Object oriented interface for Apfp
-class Apfp {
+class Context {
     hlslib::ocl::Context context_;
     std::optional<hlslib::ocl::Program> program_;
 
     std::size_t lines_per_number_;
-    const std::string kernel_path_ = "";
+
+    static std::string FindKernel();
 
    public:
-    Apfp();
+    Context();
 
     /// Allocate a buffer on the device
     DeviceMatrix AllocateDeviceMatrix(std::size_t rows, std::size_t cols);
@@ -29,6 +34,9 @@ class Apfp {
     /// Three argument matrix multiply with supplied output buffer
     void MatrixMultiplication(const DeviceMatrix& a, const DeviceMatrix& b, DeviceMatrix* result);
 
+    /// Three argument matrix addition with supplied output buffer
+    void MatrixAddition(const DeviceMatrix& a, const DeviceMatrix& b, DeviceMatrix* result);
+
     // Transpose a matrix in place
     void TransposeInPlace(DeviceMatrix* a);
 
@@ -37,13 +45,13 @@ class Apfp {
 };
 
 /// Helper class to track matrices on the device
-/// We should probably refactor the interface to Apfp to something more controlled?
+/// We should probably refactor the interface to Context to something more controlled?
 class DeviceMatrix {
     std::size_t num_rows_;
     std::size_t num_cols_;
     hlslib::ocl::Buffer<DramLine, hlslib::ocl::Access::readWrite> buffer_;
 
-    friend Apfp;
+    friend Context;
 
     DeviceMatrix() = default;
 
@@ -58,9 +66,45 @@ class DeviceMatrix {
 
     /// Transfer from the host to the device
     /// TODO: Make this take input iterators
-    void TransferToDevice(const mpf_t* buffer_ptr, std::size_t buffer_size);
+    void TransferToDevice(interface::ConstPtr buffer_ptr, std::size_t buffer_size);
+    void TransferToDevice(const interface::Wrapper* buffer_ptr, std::size_t buffer_size);
 
     /// Transfer from the device to the host
     /// TODO: Make this take output iterators
-    void TransferToHost(mpf_t* buffer_ptr, std::size_t buffer_size);
+    void TransferToHost(interface::Ptr buffer_ptr, std::size_t buffer_size);
+    void TransferToHost(interface::Wrapper* buffer_ptr, std::size_t buffer_size);
+
+   private:
+    template <typename ptr_function_type>
+    void TransferToDeviceImpl(ptr_function_type buffer_ptr_func, std::size_t buffer_size);
+
+    template <typename ptr_function_type>
+    void TransferToHostImpl(ptr_function_type buffer_ptr_func, std::size_t buffer_size);
 };
+
+// === Custom exception types ===
+struct ApfpException : public std::exception {
+    std::string e;
+
+    ApfpException() {
+        e = "";
+    }
+
+    ApfpException(const std::string& what_arg) {
+        e = what_arg;
+    }
+
+    virtual const char* what() const noexcept {
+        return e.c_str();
+    }
+};
+
+struct KernelNotFoundException : public ApfpException {
+    using ApfpException::ApfpException;
+};
+
+struct UnimplementedException : public ApfpException {
+    using ApfpException::ApfpException;
+};
+
+}  // namespace apfp

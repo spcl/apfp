@@ -114,8 +114,8 @@ bool RunTest(std::string const &kernel_path, int size_n, int size_k, int size_m,
     // Verify results
     for (int n = 0; n < size_n; ++n) {
         for (int m = 0; m < size_m; ++m) {
-            const PackedFloat res = c_host[n * size_m + m];
-            const PackedFloat ref(c_mpfr[n * size_m + m]);
+            const PackedFloat res = c_host[n + m * size_n];
+            const PackedFloat ref(c_mpfr[n + m * size_n]);
             if (ref != res) {
                 std::cerr << "Verification failed at (" << n << ", " << m << "):\n\t" << res << "\n\t" << ref << "\n";
                 return false;
@@ -127,17 +127,17 @@ bool RunTest(std::string const &kernel_path, int size_n, int size_k, int size_m,
     // Clean up
     for (int n = 0; n < size_n; ++n) {
         for (int k = 0; k < size_k; ++k) {
-            mpfr_clear(a_mpfr[n * size_k + k]);
+            mpfr_clear(a_mpfr[n + k * size_n]);
         }
     }
     for (int k = 0; k < size_k; ++k) {
         for (int m = 0; m < size_m; ++m) {
-            mpfr_clear(b_mpfr[k * size_m + m]);
+            mpfr_clear(b_mpfr[k + m * size_k]);
         }
     }
     for (int n = 0; n < size_n; ++n) {
         for (int m = 0; m < size_m; ++m) {
-            mpfr_clear(c_mpfr[n * size_m + m]);
+            mpfr_clear(c_mpfr[n + m * size_n]);
         }
     }
 

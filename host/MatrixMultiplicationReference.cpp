@@ -8,8 +8,9 @@ void MatrixMultiplicationReference(mpfr_t const *a, mpfr_t const *b, mpfr_t *c, 
     for (int n = 0; n < size_n; ++n) {
         for (int k = 0; k < size_k; ++k) {
             for (int m = 0; m < size_m; ++m) {
-                mpfr_mul(tmp, a[n * size_k + k], b[k * size_m + m], kRoundingMode);
-                mpfr_t &_c = c[n * size_m + m];
+                // C(n, m) = sum_k A(n, k) B(k, m)
+                mpfr_mul(tmp, a[n + k * size_n], b[k + m * size_k], kRoundingMode);
+                mpfr_t &_c = c[n + m * size_n];
                 mpfr_add(_c, _c, tmp, kRoundingMode);
             }
         }

@@ -45,4 +45,10 @@ int Syrk(BlasUplo uplo, BlasTrans trans, unsigned long N, unsigned long K, inter
 int Syrk(BlasUplo uplo, BlasTrans trans, unsigned long N, unsigned long K, ConstIndexFunction A, unsigned long LDA,
          IndexFunction C, unsigned long LDC);
 
+/// See netlib's documentation on Gemm for usage. Alpha and beta unsupported
+int Gemm(BlasTrans trans_a, BlasTrans trans_b, unsigned long N, unsigned long M, unsigned long K, interface::ConstPtr A, unsigned long LDA,
+         interface::Ptr B, unsigned long LDB, interface::Ptr C, unsigned long LDC);
+int Gemm(BlasTrans trans_a, BlasTrans trans_b, unsigned long N, unsigned long M, unsigned long K, ConstIndexFunction A, unsigned long LDA,
+         IndexFunction B, unsigned long LDB, IndexFunction C, unsigned long LDC);
+
 }  // namespace apfp

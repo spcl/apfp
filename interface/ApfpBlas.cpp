@@ -117,9 +117,21 @@ void CopyToMatrix(unsigned long N, unsigned long K, ptr_function_type A, unsigne
     }
 }
 
+/// Do all the intermediate work to get a device matrix out of a pointer function
+/// TODO: we can make this handle the tranpose argument and LDA check (raise exception or option type)
+template <typename ptr_function_type>
+DeviceMatrix MakeDeviceMatrix(unsigned long N, unsigned long M, ptr_function_type A, unsigned long LDA) {
+    std::vector<interface::Wrapper> host_a;
+    host_a.resize(N * M);
+    CopyFromMatrix(N, M, A, LDA, host_a.data());
+    auto device_a = apfp->AllocateDeviceMatrix(N, M);
+    device_a.TransferToDevice(host_a.data(), host_a.size());
+    return device_a;
+}
+
 template <typename ptr_function_type_a, typename ptr_function_type_c>
-int SyrkImpl(BlasUplo uplo, BlasTrans trans, unsigned long N, unsigned long K, ptr_function_type_a A,
-                 unsigned long LDA, ptr_function_type_c C, unsigned long LDC) {
+int SyrkImpl(BlasUplo uplo, BlasTrans trans, unsigned long N, unsigned long K, ptr_function_type_a A, unsigned long LDA,
+             ptr_function_type_c C, unsigned long LDC) {
     try {
         // ==== library input validation stuff ====
         if (!IsInitialized()) {
@@ -198,6 +210,67 @@ int Syrk(BlasUplo uplo, BlasTrans trans, unsigned long N, unsigned long K, inter
 int Syrk(BlasUplo uplo, BlasTrans trans, unsigned long N, unsigned long K, ConstIndexFunction A, unsigned long LDA,
          IndexFunction C, unsigned long LDC) {
     return SyrkImpl(uplo, trans, N, K, A, LDA, C, LDC);
+}
+
+template <typename ptr_function_type_a, typename ptr_function_type_b, typename ptr_function_type_c>
+int GemmImpl(BlasTrans trans_a, BlasTrans trans_b, unsigned long N, unsigned long M, unsigned long K,
+             ptr_function_type_a A, unsigned long LDA, ptr_function_type_b B, unsigned long LDB, ptr_function_type_c C,
+             unsigned long LDC) {
+    try {
+        // ==== library input validation stuff ====
+        if (!IsInitialized()) {
+            return static_cast<int>(BlasError::uninitialized);
+        }
+
+        // Implement the transposed versions later
+        if (trans_a != BlasTrans::normal || trans_b != BlasTrans::normal) {
+            return static_cast<int>(BlasError::unimplemented);
+        }
+
+        // Empty matrix
+        if (N == 0 || M == 0 || K == 0) {
+            return static_cast<int>(BlasError::success);
+        }
+
+        // Validate leading dimensions are sane
+        if (LDA < M) {
+            return -7;
+        }
+        if (LDB < K) {
+            return -9;
+        }
+
+        // ==== setup ====
+        auto device_a = MakeDeviceMatrix(N, K, A, LDA);
+        auto device_b = MakeDeviceMatrix(K, M, B, LDB);
+        auto device_c = MakeDeviceMatrix(N, M, C, LDC);
+
+        // ==== compute and teardown ====
+        apfp->MatrixMultiplication(device_a, device_b, &device_c);
+        std::vector<interface::Wrapper> host_c;
+        host_c.resize(N * M);
+        device_c.TransferToHost(host_c.data(), host_c.size());
+        CopyToMatrix(N, M, C, LDC, host_c.data());
+
+    } catch (const std::exception& e) {
+        last_error_message = e.what();
+        return static_cast<int>(BlasError::unknown);
+    }
+
+    return static_cast<int>(BlasError::success);
+}
+/// See netlib's documentation on Syrk for usage. Alpha and beta unsupported
+int Gemm(BlasTrans trans_a, BlasTrans trans_b, unsigned long N, unsigned long M, unsigned long K, interface::ConstPtr A,
+         unsigned long LDA, interface::Ptr B, unsigned long LDB, interface::Ptr C, unsigned long LDC) {
+    auto a_ptr_function = [&](unsigned long i) -> interface::ConstPtr { return A + i; };
+    auto b_ptr_function = [&](unsigned long i) -> interface::ConstPtr { return B + i; };
+    auto c_ptr_function = [&](unsigned long i) -> interface::Ptr { return C + i; };
+    return GemmImpl(trans_a, trans_b, N, M, K, a_ptr_function, LDA, b_ptr_function, LDB, c_ptr_function, LDC);
+}
+
+int Gemm(BlasTrans trans_a, BlasTrans trans_b, unsigned long N, unsigned long M, unsigned long K, ConstIndexFunction A,
+         unsigned long LDA, IndexFunction B, unsigned long LDB, IndexFunction C, unsigned long LDC) {
+    return GemmImpl(trans_a, trans_b, N, M, K, A, LDA, B, LDB, C, LDC);
 }
 
 }  // namespace apfp

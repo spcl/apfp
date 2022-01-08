@@ -237,7 +237,7 @@ TEST_CASE("GEMM") {
             // upper half
             for (unsigned long i = 0; i < M; ++i) {
                 auto ref_value = ref_result.at(i + j * M).get();
-                auto test_value = ref_result.at(i + j * M).get();
+                auto test_value = c_matrix.at(i + j * M).get();
                 CAPTURE(i, j);
                 CAPTURE(PackedFloat(ref_value), PackedFloat(test_value));
                 CAPTURE(mpfr_get_d(ref_value, kRoundingMode), mpfr_get_d(test_value, kRoundingMode));

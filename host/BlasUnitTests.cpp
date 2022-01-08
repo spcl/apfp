@@ -68,7 +68,7 @@ TEST_CASE("SYRK") {
     unsigned long N = GENERATE(0, 1, 2, 8, 15, 16, 31, 32, 33);
     unsigned long K = GENERATE(0, 1, 2, 8, 15, 16, 31, 32, 33);
 
-    auto mode = GENERATE(apfp::BlasTrans::transpose);
+    auto mode = GENERATE(apfp::BlasTrans::transpose, apfp::BlasTrans::normal);
     auto uplo_mode = GENERATE(apfp::BlasUplo::upper, apfp::BlasUplo::lower);
     // Test SYRK
     // In 'N' mode, we perform AA^T + C
@@ -152,4 +152,16 @@ TEST_CASE("SYRK") {
     }
 
     ApfpTeardown();
+}
+
+TEST_CASE("GEMM") {
+    ApfpSetup();
+
+    auto rng = RandomNumberGenerator();
+
+    unsigned long N = GENERATE(0, 1, 2, 8, 15, 16, 31, 32, 33);
+    unsigned long M = GENERATE(0, 1, 2, 8, 15, 16, 31, 32, 33);
+    unsigned long K = GENERATE(0, 1, 2, 8, 15, 16, 31, 32, 33);
+
+
 }

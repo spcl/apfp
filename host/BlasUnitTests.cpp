@@ -17,7 +17,7 @@ void ApfpSetup() {
     mpfr_set_default_prec(kMantissaBits);
 #endif
     auto apfp_error_code = apfp::Init(kMantissaBits);
-    REQUIRE(apfp_error_code);
+    REQUIRE(!apfp_error_code);
 }
 
 void ApfpTeardown() {
@@ -67,7 +67,8 @@ TEST_CASE("SYRK") {
 
     unsigned long N = GENERATE(0, 1, 2, 8, 15, 16, 31, 32, 33);
     unsigned long K = GENERATE(0, 1, 2, 8, 15, 16, 31, 32, 33);
-    auto mode = GENERATE(apfp::BlasTrans::normal, apfp::BlasTrans::transpose);
+
+    auto mode = GENERATE(apfp::BlasTrans::transpose);
     auto uplo_mode = GENERATE(apfp::BlasUplo::upper, apfp::BlasUplo::lower);
     // Test SYRK
     // In 'N' mode, we perform AA^T + C
@@ -75,6 +76,7 @@ TEST_CASE("SYRK") {
     // C is NxN
     // Matrices are stored column major because BLAS
     {
+        CAPTURE(N, K, mode, uplo_mode);
         std::vector<apfp::interface::Wrapper> a_matrix;
         a_matrix.resize(N * K);
         for (auto& v : a_matrix) {
@@ -90,25 +92,27 @@ TEST_CASE("SYRK") {
         std::vector<apfp::interface::Wrapper> ref_result;
         ref_result.resize(N * N);
 
+        // Capture inputs for when we explode
+        std::vector<double> a_matrix_d, c_matrix_d;
+        a_matrix_d.resize(a_matrix.size());
+        std::transform(a_matrix.begin(), a_matrix.end(), a_matrix_d.begin(),
+                       [](const auto& v) { return mpfr_get_d(v.get(), kRoundingMode); });
+        c_matrix_d.resize(c_matrix.size());
+        std::transform(c_matrix.begin(), c_matrix.end(), c_matrix_d.begin(),
+                       [](const auto& v) { return mpfr_get_d(v.get(), kRoundingMode); });
+        CAPTURE(a_matrix_d, c_matrix_d);
+
         // Compute reference result
         apfp::interface::Wrapper prod_temp;
         for (unsigned long j = 0; j < N; ++j) {
             // lower half
             for (unsigned long i = 0; i < N; ++i) {
-                auto r_idx = i + j * N;
+                auto r_idx = mode == apfp::BlasTrans::normal ? i + j * N : j + i * N;
                 apfp::interface::Set(ref_result.at(r_idx).get(), c_matrix.at(r_idx).get());
 
                 for (unsigned long k = 0; k < K; ++k) {
-                    // A is NxK if N, KxN if T
-                    if (mode == apfp::BlasTrans::normal) {
-                        // (AB)_ij = sum_k A(i,k)B(k,j)
-                        apfp::interface::Mul(prod_temp.get(), a_matrix.at(i + k * N).get(),
-                                             a_matrix.at(j + k * N).get());
-                    } else {
-                        // (AB)_ij = sum_k A(i,k) B(k,j)
-                        apfp::interface::Mul(prod_temp.get(), a_matrix.at(k + i * K).get(),
-                                             a_matrix.at(k + j * K).get());
-                    }
+                    // (AB)_ij = sum_k A(i,k)B(k,j)
+                    apfp::interface::Mul(prod_temp.get(), a_matrix.at(i + k * N).get(), a_matrix.at(j + k * N).get());
                     apfp::interface::Add(ref_result.at(r_idx).get(), prod_temp.get(), ref_result.at(r_idx).get());
                 }
             }
@@ -118,17 +122,30 @@ TEST_CASE("SYRK") {
         auto error_code = apfp::Syrk(
             uplo_mode, mode, N, K, [&](unsigned long i) { return a_matrix.at(i).get(); },
             mode == apfp::BlasTrans::normal ? N : K, [&](unsigned long i) { return c_matrix.at(i).get(); }, N);
-        REQUIRE(error_code);
+        REQUIRE(!error_code);
+
+        std::vector<double> c_matrix_result_d, c_matrix_ref_result_d;
+        c_matrix_result_d.resize(c_matrix.size());
+        c_matrix_ref_result_d.resize(c_matrix.size());
+        std::transform(c_matrix.begin(), c_matrix.end(), c_matrix_result_d.begin(),
+                       [](const auto& v) { return mpfr_get_d(v.get(), kRoundingMode); });
+        std::transform(ref_result.begin(), ref_result.end(), c_matrix_ref_result_d.begin(),
+                       [](const auto& v) { return mpfr_get_d(v.get(), kRoundingMode); });
+
+        CAPTURE(c_matrix_result_d, c_matrix_ref_result_d);
 
         // Check all entries are sufficiently close
         apfp::interface::Wrapper diff;
         for (unsigned long j = 0; j < N; ++j) {
-            // lower half
+            // upper half
             for (unsigned long i = 0; i < j; ++i) {
-                auto ref_value = uplo_mode == apfp::BlasUplo::lower ? ref_result.at(i + j * N).get()
+                auto ref_value = uplo_mode == apfp::BlasUplo::upper ? ref_result.at(i + j * N).get()
                                                                     : ref_result.at(j + i * N).get();
                 auto test_value =
-                    uplo_mode == apfp::BlasUplo::lower ? c_matrix.at(i + j * N).get() : c_matrix.at(j + i * N).get();
+                    uplo_mode == apfp::BlasUplo::upper ? c_matrix.at(i + j * N).get() : c_matrix.at(j + i * N).get();
+                CAPTURE(i, j);
+                CAPTURE(PackedFloat(ref_value), PackedFloat(test_value));
+                CAPTURE(mpfr_get_d(ref_value, kRoundingMode), mpfr_get_d(test_value, kRoundingMode));
                 REQUIRE(IsClose(ref_value, test_value));
             }
         }

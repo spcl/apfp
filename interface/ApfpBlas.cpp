@@ -213,7 +213,7 @@ int Syrk(BlasUplo uplo, BlasTrans trans, unsigned long N, unsigned long K, Const
 }
 
 template <typename ptr_function_type_a, typename ptr_function_type_b, typename ptr_function_type_c>
-int GemmImpl(BlasTrans trans_a, BlasTrans trans_b, unsigned long N, unsigned long M, unsigned long K,
+int GemmImpl(BlasTrans trans_a, BlasTrans trans_b, unsigned long M, unsigned long N, unsigned long K,
              ptr_function_type_a A, unsigned long LDA, ptr_function_type_b B, unsigned long LDB, ptr_function_type_c C,
              unsigned long LDC) {
     try {
@@ -241,16 +241,16 @@ int GemmImpl(BlasTrans trans_a, BlasTrans trans_b, unsigned long N, unsigned lon
         }
 
         // ==== setup ====
-        auto device_a = MakeDeviceMatrix(N, K, A, LDA);
-        auto device_b = MakeDeviceMatrix(K, M, B, LDB);
-        auto device_c = MakeDeviceMatrix(N, M, C, LDC);
+        auto device_a = MakeDeviceMatrix(M, K, A, LDA);
+        auto device_b = MakeDeviceMatrix(K, N, B, LDB);
+        auto device_c = MakeDeviceMatrix(M, N, C, LDC);
 
         // ==== compute and teardown ====
         apfp->MatrixMultiplication(device_a, device_b, &device_c);
         std::vector<interface::Wrapper> host_c;
-        host_c.resize(N * M);
+        host_c.resize(M * N);
         device_c.TransferToHost(host_c.data(), host_c.size());
-        CopyToMatrix(N, M, C, LDC, host_c.data());
+        CopyToMatrix(M, N, C, LDC, host_c.data());
 
     } catch (const std::exception& e) {
         last_error_message = e.what();
@@ -260,17 +260,17 @@ int GemmImpl(BlasTrans trans_a, BlasTrans trans_b, unsigned long N, unsigned lon
     return static_cast<int>(BlasError::success);
 }
 /// See netlib's documentation on Syrk for usage. Alpha and beta unsupported
-int Gemm(BlasTrans trans_a, BlasTrans trans_b, unsigned long N, unsigned long M, unsigned long K, interface::ConstPtr A,
+int Gemm(BlasTrans trans_a, BlasTrans trans_b, unsigned long M, unsigned long N, unsigned long K, interface::ConstPtr A,
          unsigned long LDA, interface::Ptr B, unsigned long LDB, interface::Ptr C, unsigned long LDC) {
     auto a_ptr_function = [&](unsigned long i) -> interface::ConstPtr { return A + i; };
     auto b_ptr_function = [&](unsigned long i) -> interface::ConstPtr { return B + i; };
     auto c_ptr_function = [&](unsigned long i) -> interface::Ptr { return C + i; };
-    return GemmImpl(trans_a, trans_b, N, M, K, a_ptr_function, LDA, b_ptr_function, LDB, c_ptr_function, LDC);
+    return GemmImpl(trans_a, trans_b, M, N, K, a_ptr_function, LDA, b_ptr_function, LDB, c_ptr_function, LDC);
 }
 
-int Gemm(BlasTrans trans_a, BlasTrans trans_b, unsigned long N, unsigned long M, unsigned long K, ConstIndexFunction A,
+int Gemm(BlasTrans trans_a, BlasTrans trans_b, unsigned long M, unsigned long N, unsigned long K, ConstIndexFunction A,
          unsigned long LDA, IndexFunction B, unsigned long LDB, IndexFunction C, unsigned long LDC) {
-    return GemmImpl(trans_a, trans_b, N, M, K, A, LDA, B, LDB, C, LDC);
+    return GemmImpl(trans_a, trans_b, M, N, K, A, LDA, B, LDB, C, LDC);
 }
 
 }  // namespace apfp

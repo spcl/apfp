@@ -24,7 +24,6 @@ enum class BlasTrans : char {
     transpose = 'T',
 };
 
-
 using IndexFunction = std::function<interface::Ptr(unsigned long)>;
 using ConstIndexFunction = std::function<interface::ConstPtr(unsigned long)>;
 /// Null terminated string describing the most recent library error if available
@@ -46,9 +45,9 @@ int Syrk(BlasUplo uplo, BlasTrans trans, unsigned long N, unsigned long K, Const
          IndexFunction C, unsigned long LDC);
 
 /// See netlib's documentation on Gemm for usage. Alpha and beta unsupported
-int Gemm(BlasTrans trans_a, BlasTrans trans_b, unsigned long N, unsigned long M, unsigned long K, interface::ConstPtr A, unsigned long LDA,
-         interface::Ptr B, unsigned long LDB, interface::Ptr C, unsigned long LDC);
-int Gemm(BlasTrans trans_a, BlasTrans trans_b, unsigned long N, unsigned long M, unsigned long K, ConstIndexFunction A, unsigned long LDA,
-         IndexFunction B, unsigned long LDB, IndexFunction C, unsigned long LDC);
+int Gemm(BlasTrans trans_a, BlasTrans trans_b, unsigned long M, unsigned long N, unsigned long K, interface::ConstPtr A,
+         unsigned long LDA, interface::Ptr B, unsigned long LDB, interface::Ptr C, unsigned long LDC);
+int Gemm(BlasTrans trans_a, BlasTrans trans_b, unsigned long M, unsigned long N, unsigned long K, ConstIndexFunction A,
+         unsigned long LDA, IndexFunction B, unsigned long LDB, IndexFunction C, unsigned long LDC);
 
 }  // namespace apfp

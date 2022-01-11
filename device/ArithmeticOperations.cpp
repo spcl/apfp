@@ -4,6 +4,7 @@
 #include <hlslib/xilinx/Utility.h>  // hlslib::CeilDivide, hlslib::ConstLog2
 
 #include "Karatsuba.h"
+#include "PipelinedAdd.h"
 
 template <int bits>
 inline bool IsMostSignificantBitSet(ap_uint<bits> const &num) {
@@ -55,7 +56,6 @@ PackedFloat Multiply(PackedFloat const &a, PackedFloat const &b) {
 // Does this correctly output the result if a and b are different signs?
 // The mantissa of the result should depend on the sign bits of a and b
 PackedFloat Add(PackedFloat const &a_in, PackedFloat const &b_in) {
-
     const bool exp_are_equal = (a_in.GetExponent() == b_in.GetExponent());
     const bool a_in_exp_strictly_larger = (a_in.GetExponent() > b_in.GetExponent());
     const bool a_in_mant_is_zero = a_in.GetMantissa() == 0;
@@ -102,8 +102,8 @@ PackedFloat Add(PackedFloat const &a_in, PackedFloat const &b_in) {
     // Now we can add up the aligned mantissas
     // ==== Add/Sub mantissas ====
     // We cannot truncate yet because of the renormalization step
-    const ap_uint<kMantissaBits + 1 + lsb_bits> ab_sum_lsb_msb = (a_mantissa_shifted + b_mantissa_shifted);
-#pragma HLS BIND_OP variable = ab_sum_lsb_msb op = add impl = fabric latency = 4
+    const ap_uint<kMantissaBits + 1 + lsb_bits> ab_sum_lsb_msb =
+        PipelinedAdd<kMantissaBits + lsb_bits>(a_mantissa_shifted, b_mantissa_shifted);
 
     // This returns an ap_int but the answer is always positive so the MSB is never set
     // Xilinx manual states signed <-> unsigned ignores the sign and converts bit for bit
@@ -122,16 +122,20 @@ PackedFloat Add(PackedFloat const &a_in, PackedFloat const &b_in) {
 
     const bool addition_overflowed = IsMostSignificantBitSet(_res_mantissa_lsb_msb);
     // We're still holding onto the extra lsb
-    const ap_uint<kMantissaBits + lsb_bits> res_mantissa_lsb = addition_overflowed ? (_res_mantissa_lsb_msb >> 1) : _res_mantissa_lsb_msb;
+    const ap_uint<kMantissaBits + lsb_bits> res_mantissa_lsb =
+        addition_overflowed ? (_res_mantissa_lsb_msb >> 1) : _res_mantissa_lsb_msb;
     res_exponent = res_exponent + (addition_overflowed ? 1 : 0);
 
     // ==== Renormalize / Underflow ====
     // Normalize the mantissa
     bool res_nonzero = res_mantissa_lsb != 0;
-    const Exponent leading_zeros = res_nonzero ? CountLeadingZeros(static_cast<ap_uint<kMantissaBits>>(res_mantissa_lsb >> kMantissaBits)) : kMantissaBits;
+    const Exponent leading_zeros =
+        res_nonzero ? CountLeadingZeros(static_cast<ap_uint<kMantissaBits>>(res_mantissa_lsb >> kMantissaBits))
+                    : kMantissaBits;
 
     // Left shift by the number of leading zeros and truncate the lsb now
-    ap_uint<kMantissaBits> res_mantissa = (res_nonzero ? (res_mantissa_lsb << leading_zeros) : decltype(res_mantissa_lsb)(0)) >> lsb_bits;
+    ap_uint<kMantissaBits> res_mantissa =
+        (res_nonzero ? (res_mantissa_lsb << leading_zeros) : decltype(res_mantissa_lsb)(0)) >> lsb_bits;
 
     // We need to watch for underflow here
     const bool underflow = res_exponent < std::numeric_limits<Exponent>::min() + leading_zeros;

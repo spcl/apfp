@@ -20,7 +20,7 @@ math(EXPR APFP_ALIGNED "${APFP_BITS} % 512")
 if(NOT APFP_ALIGNED EQUAL 0)
     message(FATAL_ERROR "Number of bits ${APFP_BITS} must be aligned to the DRAM line size of 512 bits.")
 endif()
-math(EXPR APFP_MAX_BITS "${APFP_BITS} * 2")
+math(EXPR APFP_MAX_BITS "${APFP_BITS} * 2 + 1")
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_SOURCE_DIR}/hlslib/cmake ${CMAKE_SOURCE_DIR}/cmake)
 
@@ -46,9 +46,11 @@ add_vitis_kernel(MatrixMultiplication FILES ${APFP_KERNEL_FILES}
                  HLS_CONFIG "config_compile -pipeline_style frp\nconfig_dataflow -fifo_depth 16"
                  DEPENDS ${CMAKE_BINARY_DIR}/Config.h
                          include/ArithmeticOperations.h
+                         include/DeviceTypes.h
                          include/Karatsuba.h
                          include/MatrixMultiplication.h
                          include/PackedFloat.h
+                         include/PipelinedAdd.h
                 PORT_MAPPING m_axi_a:DDR[1]
                              m_axi_b:DDR[1]
                              m_axi_c_read:DDR[1]

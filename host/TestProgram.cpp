@@ -13,8 +13,12 @@
 struct MpfrWrapper {
     mpfr_t x;
 
-    operator mpfr_ptr() { return x; }
-    operator mpfr_srcptr() const { return x; }
+    operator mpfr_ptr() {
+        return x;
+    }
+    operator mpfr_srcptr() const {
+        return x;
+    }
 };
 
 #ifdef HLSLIB_SIMULATE_OPENCL
@@ -63,25 +67,31 @@ bool RunTest(std::string const &kernel_path, int size_n, int size_k, int size_m,
     std::cout << " Done.\n";
     // Allocate device memory, padding each buffer to the tile size
     std::cout << "Copying data to the device..." << std::flush;
-    auto a_device = context.MakeBuffer<DramLine, hlslib::ocl::Access::read>(
-        hlslib::ocl::StorageType::DDR, 1,
-        kLinesPerNumber * (hlslib::CeilDivide(size_n, kTileSizeN) * kTileSizeN) * size_k);
-    auto b_device = context.MakeBuffer<DramLine, hlslib::ocl::Access::read>(
-        hlslib::ocl::StorageType::DDR, 1,
-        kLinesPerNumber * size_k * (hlslib::CeilDivide(size_m, kTileSizeM) * kTileSizeM));
-    auto c_device = context.MakeBuffer<DramLine, hlslib::ocl::Access::readWrite>(
-        hlslib::ocl::StorageType::DDR, 1,
-        kLinesPerNumber * (hlslib::CeilDivide(size_n, kTileSizeN) * kTileSizeN) *
-            (hlslib::CeilDivide(size_m, kTileSizeM) * kTileSizeM));
-    // Copy data to the accelerator cast to 512-bit DRAM lines
-    a_device.CopyFromHost(0, kLinesPerNumber * size_n * size_k, reinterpret_cast<DramLine const *>(&a_host[0]));
-    b_device.CopyFromHost(0, kLinesPerNumber * size_k * size_m, reinterpret_cast<DramLine const *>(&b_host[0]));
-    c_device.CopyFromHost(0, kLinesPerNumber * size_n * size_m, reinterpret_cast<DramLine const *>(&c_host[0]));
+    constexpr int kDramMapping[] = {1, 0, 2, 3};
+    std::vector<hlslib::ocl::Buffer<DramLine, hlslib::ocl::Access::read>> a_device;
+    std::vector<hlslib::ocl::Buffer<DramLine, hlslib::ocl::Access::read>> b_device;
+    std::vector<hlslib::ocl::Buffer<DramLine, hlslib::ocl::Access::readWrite>> c_device;
+    for (int i = 0; i < kComputeUnits; ++i) {
+        a_device.emplace_back(context, hlslib::ocl::StorageType::DDR, kDramMapping[i],
+                              kLinesPerNumber * (hlslib::CeilDivide(size_n, kTileSizeN) * kTileSizeN) * size_k);
+        b_device.emplace_back(context, hlslib::ocl::StorageType::DDR, kDramMapping[i],
+                              kLinesPerNumber * size_k * (hlslib::CeilDivide(size_m, kTileSizeM) * kTileSizeM));
+        c_device.emplace_back(context, hlslib::ocl::StorageType::DDR, kDramMapping[i],
+                              kLinesPerNumber * (hlslib::CeilDivide(size_n, kTileSizeN) * kTileSizeN) *
+                                  (hlslib::CeilDivide(size_m, kTileSizeM) * kTileSizeM));
+        // Copy data to the accelerator cast to 512-bit DRAM lines
+        a_device[i].CopyFromHost(0, kLinesPerNumber * size_n * size_k, reinterpret_cast<DramLine const *>(&a_host[0]));
+        b_device[i].CopyFromHost(0, kLinesPerNumber * size_k * size_m, reinterpret_cast<DramLine const *>(&b_host[0]));
+        c_device[i].CopyFromHost(0, kLinesPerNumber * size_n * size_m, reinterpret_cast<DramLine const *>(&c_host[0]));
+    }
     std::cout << " Done.\n";
     // In simulation mode, this will call the function "MatrixMultiplication" and run it in software.
     // Otherwise, the provided path to a kernel binary will be loaded and executed.
-    auto kernel = program.MakeKernel(MatrixMultiplication, "MatrixMultiplication", a_device, b_device, c_device,
-                                     c_device, size_n, size_k, size_m);
+    std::vector<hlslib::ocl::Kernel> kernels;
+    for (int i = 0; i < kComputeUnits; ++i) {
+        kernels.emplace_back(program.MakeKernel(MatrixMultiplication, "MatrixMultiplication", a_device[i], b_device[i],
+                                                c_device[i], c_device[i], size_n, size_k, size_m));
+    }
     const unsigned long expected_cycles = hlslib::CeilDivide(size_n, kTileSizeN) *
                                           hlslib::CeilDivide(size_m, kTileSizeM) * kTileSizeN * kTileSizeM * size_k;
     const float expected_runtime = expected_cycles / 0.3e9;
@@ -92,33 +102,55 @@ bool RunTest(std::string const &kernel_path, int size_n, int size_k, int size_m,
     std::cout << "This communicates " << 1e-6 * kBytes * communication_volume << " MB, requiring a bandwidth of "
               << 1e-9 * kBytes * communication_volume / expected_runtime << " GB/s.\n";
     std::cout << "Executing kernel...\n";
-    const auto elapsed = kernel.ExecuteTask();
-    std::cout << "Ran in " << elapsed.first << " seconds.\n";
+    std::vector<hlslib::ocl::Event> events;
+    auto start = std::chrono::high_resolution_clock::now();
+    for (int i = 0; i < kComputeUnits; ++i) {
+        events.emplace_back(kernels[i].ExecuteTaskAsync());
+    }
+    hlslib::ocl::WaitForEvents(events);
+    auto end = std::chrono::high_resolution_clock::now();
+    double elapsed = 1e-9 * std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
+    std::cout << "Ran in " << elapsed << " seconds.\n";
 
     if (!verify) {
         return true;
     }
 
     // Copy back result
-    c_device.CopyToHost(0, kLinesPerNumber * size_n * size_m, reinterpret_cast<DramLine *>(&c_host[0]));
+    std::cout << "Copying back result..." << std::flush;
+    std::vector<std::vector<PackedFloat>> results(kComputeUnits, std::vector<PackedFloat>(size_n * size_m));
+    for (int i = 0; i < kComputeUnits; ++i) {
+        c_device[i].CopyToHost(0, kLinesPerNumber * size_n * size_m, reinterpret_cast<DramLine *>(&results[i][0]));
+    }
+    std::cout << "Done.\n";
+
     // Run reference implementation. Because of GMP's "clever" way of wrapping their struct in an array of size 1,
     // allocating and passing arrays of GMP numbers is a mess
     std::cout << "Running reference implementation...\n";
-    const auto start = std::chrono::high_resolution_clock::now();
+    start = std::chrono::high_resolution_clock::now();
     MatrixMultiplicationReference(reinterpret_cast<mpfr_t const *>(&a_mpfr[0]),
                                   reinterpret_cast<mpfr_t const *>(&b_mpfr[0]), reinterpret_cast<mpfr_t *>(&c_mpfr[0]),
                                   size_n, size_k, size_m);
-    const auto end = std::chrono::high_resolution_clock::now();
+    end = std::chrono::high_resolution_clock::now();
     const double elapsed_reference = 1e-9 * std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
     std::cout << "Ran in " << elapsed_reference << " seconds.\n";
+
     // Verify results
-    for (int n = 0; n < size_n; ++n) {
-        for (int m = 0; m < size_m; ++m) {
-            const PackedFloat res = c_host[n * size_m + m];
-            const PackedFloat ref(c_mpfr[n * size_m + m]);
-            if (ref != res) {
-                std::cerr << "Verification failed at (" << n << ", " << m << "):\n\t" << res << "\n\t" << ref << "\n";
-                return false;
+    for (int i = 0; i < kComputeUnits; ++i) {
+        for (int n = 0; n < size_n; ++n) {
+            for (int m = 0; m < size_m; ++m) {
+                const PackedFloat res = results[i][n * size_m + m];
+                const PackedFloat ref(c_mpfr[n * size_m + m]);
+                if (ref != res) {
+                    if (kComputeUnits <= 1) {
+                        std::cerr << "Verification failed at (" << n << ", " << m << "):\n\t" << res << "\n\t" << ref
+                                  << "\n";
+                    } else {
+                        std::cerr << "Verification failed for compute unit " << i << " at (" << n << ", " << m
+                                  << "):\n\t" << res << "\n\t" << ref << "\n";
+                    }
+                    return false;
+                }
             }
         }
     }

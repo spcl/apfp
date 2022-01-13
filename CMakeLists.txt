@@ -9,6 +9,7 @@ set(APFP_BITS 1024 CACHE STRING "Number of bits to use for a floating point numb
 set(APFP_MULT_BASE_BITS 18 CACHE STRING "Number of bits to bottom out the multiplication at and use native multiplication.")
 set(APFP_TILE_SIZE_N 32 CACHE STRING "Tile size in the N-dimension when running matrix-matrix multiplication.")
 set(APFP_TILE_SIZE_M 32 CACHE STRING "Tile size in the M-dimension when running matrix-matrix multiplication.")
+set(APFP_COMPUTE_UNITS 1 CACHE STRING "Number of replications of the kernel to instantiate.")
 set(APFP_SEMANTICS "MPFR" CACHE STRING "Which semantics to use for floating point operations [GMP/MPFR].")
 set(APFP_DEBUGGING OFF CACHE BOOL "Enable debugging in generated kernels.")
 set(APFP_PROFILING OFF CACHE BOOL "Enable profiling in generated kernels.")
@@ -28,9 +29,8 @@ find_package(Vitis REQUIRED)
 find_package(MPFR REQUIRED)
 find_package(GMP REQUIRED)
 find_package(Threads REQUIRED)
-find_package(OpenMP)  # This is just for running MPFR, so leave as optional
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wpedantic -Wno-unused-label -Wno-class-memaccess -Wno-unknown-pragmas -DAPFP_${APFP_SEMANTICS}_SEMANTICS ${OpenMP_CXX_FLAGS}")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wpedantic -Wno-unused-label -Wno-class-memaccess -Wno-unknown-pragmas -DAPFP_${APFP_SEMANTICS}_SEMANTICS")
 include_directories(${CMAKE_BINARY_DIR} include SYSTEM hlslib/include ${Vitis_INCLUDE_DIRS} )
 
 configure_file(include/Config.h.in Config.h)
@@ -39,8 +39,39 @@ set(APFP_KERNEL_FILES device/MatrixMultiplication.cpp
                       device/ArithmeticOperations.cpp
                       device/Karatsuba.cpp)
 
+# Mapping to DDR ports
+set(APFP_PORT_MAPPING MatrixMultiplication_1.m_axi_a:DDR[1]
+                      MatrixMultiplication_1.m_axi_b:DDR[1]
+                      MatrixMultiplication_1.m_axi_c_read:DDR[1]
+                      MatrixMultiplication_1.m_axi_c_write:DDR[1])
+if(${APFP_COMPUTE_UNITS} GREATER 1)
+    set(APFP_PORT_MAPPING ${APFP_PORT_MAPPING}
+                          MatrixMultiplication_2.m_axi_a:DDR[0]
+                          MatrixMultiplication_2.m_axi_b:DDR[0]
+                          MatrixMultiplication_2.m_axi_c_read:DDR[0]
+                          MatrixMultiplication_2.m_axi_c_write:DDR[0])
+endif()
+if(${APFP_COMPUTE_UNITS} GREATER 2)
+    set(APFP_PORT_MAPPING ${APFP_PORT_MAPPING}
+                          MatrixMultiplication_3.m_axi_a:DDR[2]
+                          MatrixMultiplication_3.m_axi_b:DDR[2]
+                          MatrixMultiplication_3.m_axi_c_read:DDR[2]
+                          MatrixMultiplication_3.m_axi_c_write:DDR[2])
+endif()
+if(${APFP_COMPUTE_UNITS} GREATER 3)
+    set(APFP_PORT_MAPPING ${APFP_PORT_MAPPING}
+                          MatrixMultiplication_4.m_axi_a:DDR[3]
+                          MatrixMultiplication_4.m_axi_b:DDR[3]
+                          MatrixMultiplication_4.m_axi_c_read:DDR[3]
+                          MatrixMultiplication_4.m_axi_c_write:DDR[3])
+endif()
+if(${APFP_COMPUTE_UNITS} GREATER 4)
+    message(FATAL_ERROR "More than 4 compute units is not supported.")
+endif()
+
 # Setup FPGA kernel targets
 add_vitis_kernel(MatrixMultiplication FILES ${APFP_KERNEL_FILES}
+                 COMPUTE_UNITS ${APFP_COMPUTE_UNITS}
                  INCLUDE_DIRS include hlslib/include ${CMAKE_BINARY_DIR}
                  HLS_FLAGS "-DAP_INT_MAX_W=${APFP_MAX_BITS} -DAPFP_${APFP_SEMANTICS}_SEMANTICS"
                  HLS_CONFIG "config_compile -pipeline_style frp\nconfig_dataflow -fifo_depth 16"
@@ -51,10 +82,7 @@ add_vitis_kernel(MatrixMultiplication FILES ${APFP_KERNEL_FILES}
                          include/MatrixMultiplication.h
                          include/PackedFloat.h
                          include/PipelinedAdd.h
-                PORT_MAPPING m_axi_a:DDR[1]
-                             m_axi_b:DDR[1]
-                             m_axi_c_read:DDR[1]
-                             m_axi_c_write:DDR[1])
+                PORT_MAPPING ${APFP_PORT_MAPPING})
 add_vitis_program(MatrixMultiplication ${APFP_PLATFORM}
                   PROFILING ${APFP_PROFILING}
                   DEBUGGING ${APFP_DEBUGGING}
@@ -62,7 +90,7 @@ add_vitis_program(MatrixMultiplication ${APFP_PLATFORM}
 
 # Internal library 
 add_library(apfp host/Random.cpp host/MatrixMultiplicationReference.cpp)
-target_link_libraries(apfp ${GMP_LIBRARIES} ${MPFR_LIBRARIES} ${OpenMP_CXX_LIBRARIES})
+target_link_libraries(apfp ${GMP_LIBRARIES} ${MPFR_LIBRARIES})
 
 # Library necessary to run in simulation mode
 add_library(simulation ${APFP_KERNEL_FILES})

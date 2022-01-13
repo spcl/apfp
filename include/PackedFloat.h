@@ -18,7 +18,7 @@ struct PackedSignExponent {
 };
 static_assert(sizeof(PackedSignExponent) == sizeof(Exponent), "Sign must be tightly packed into exponent.");
 
-/// Full floating point number densely packed to fit into a 512-bit DRAM line.
+/// Full floating point number densely packed to fit into 512-bit DRAM lines.
 class PackedFloat {
    public:
     inline PackedFloat() {

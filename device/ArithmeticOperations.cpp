@@ -49,7 +49,7 @@ PackedFloat Multiply(PackedFloat const &a, PackedFloat const &b) {
     PackedFloat result;
     result.SetMantissa(m_mantissa);
     result.SetExponent(m_exponent);
-    result.SetSign(a.GetSign() != b.GetSign());
+    result.SetSign(a.GetSignBit() != b.GetSignBit());
     return result;
 }
 
@@ -86,7 +86,7 @@ PackedFloat Add(PackedFloat const &a_in, PackedFloat const &b_in) {
     assert(!a_is_zero || (a_is_zero && a_in_mant_is_zero && b_in_mant_is_zero));
 #endif
 
-    const bool subtraction = a.GetSign() != b.GetSign();
+    const bool subtraction = a.GetSignBit() != b.GetSignBit();
     Exponent res_exponent = a.GetExponent();
     const Exponent shift_m = a.GetExponent() - b.GetExponent();
 
@@ -156,7 +156,7 @@ PackedFloat Add(PackedFloat const &a_in, PackedFloat const &b_in) {
     result.SetMantissa(res_mantissa);
     result.SetExponent(res_exponent);
     // Sign will be the same as whatever is the largest number
-    result.SetSign(a.GetSign());
+    result.SetSign(a.GetSignBit());
 
     return a_is_zero ? PackedFloat::Zero() : result;
 }

@@ -11,8 +11,14 @@
 
 using MantissaFlat = ap_uint<kMantissaBits>;
 
-/// Full floating point number densely packed to fit into a 512-bit DRAM line.
 #pragma pack(push, 1)
+struct PackedSignExponent {
+    Exponent exponent : 8 * sizeof(Exponent) - 1;
+    bool sign : 1;
+};
+static_assert(sizeof(PackedSignExponent) == sizeof(Exponent), "Sign must be tightly packed into exponent.");
+
+/// Full floating point number densely packed to fit into 512-bit DRAM lines.
 class PackedFloat {
    public:
     inline PackedFloat() {
@@ -58,22 +64,35 @@ class PackedFloat {
 
     Exponent GetExponent() const {
 #pragma HLS INLINE
-        return data_.range(kBits - 8 * sizeof(Sign) - 1, kBits - 8 * sizeof(Sign) - 8 * sizeof(Exponent));
+        const uint64_t sign_exponent = data_.range(kBits - 1, kBits - 8 * sizeof(Exponent));
+        return reinterpret_cast<PackedSignExponent const *>(&sign_exponent)->exponent;
     }
 
     void SetExponent(Exponent const &exponent) {
 #pragma HLS INLINE
-        data_.range(kBits - 8 * sizeof(Sign) - 1, kBits - 8 * sizeof(Sign) - 8 * sizeof(Exponent)) = exponent;
+        PackedSignExponent sign_exponent;
+        sign_exponent.exponent = exponent;
+        data_.range(kBits - 2, kBits - 8 * sizeof(Exponent)) = *reinterpret_cast<Exponent const *>(&sign_exponent);
     }
 
     Sign GetSign() const {
 #pragma HLS INLINE
-        return data_.range(kBits - 1, kBits - 8 * sizeof(Sign));
+        return data_.get_bit(kBits - 1);
+    }
+
+    bool GetSignBit() const {
+#pragma HLS INLINE
+        return data_.get_bit(kBits - 1);
     }
 
     void SetSign(Sign const &sign) {
 #pragma HLS INLINE
-        data_.range(kBits - 1, kBits - 8 * sizeof(Sign)) = sign;
+        data_.set_bit(kBits - 1, sign != 0);
+    }
+
+    void SetSign(bool sign) {
+#pragma HLS INLINE
+        data_.set_bit(kBits - 1, sign);
     }
 
     DramLine GetFlit(const size_t i) const {
@@ -136,7 +155,7 @@ class PackedFloat {
             // Doesn't this copy to the LSB of the mantissa?
             std::memset(reinterpret_cast<char *>(&data_), 0x0, copy_to);
             std::memcpy(reinterpret_cast<char *>(&data_) + copy_to,
-                    reinterpret_cast<uint8_t const *>(num->_mpfr_d) + copy_from, bytes_to_copy);
+                        reinterpret_cast<uint8_t const *>(num->_mpfr_d) + copy_from, bytes_to_copy);
             // Section 5.16 of the MPFR manual suggests the exponent might take on special values
             SetExponent(mpfr_get_exp(num));
             SetSign(mpfr_signbit(num) ? 1 : 0);  // 1 if negative, 0 otherwise
@@ -186,7 +205,7 @@ class PackedFloat {
             const auto copy_from = kMantissaBytes - bytes_to_copy;
             std::memset(num->_mpfr_d, 0x0, copy_to);
             std::memcpy(reinterpret_cast<char *>(num->_mpfr_d) + copy_to,
-                reinterpret_cast<char const *>(&data_) + copy_from, bytes_to_copy);
+                        reinterpret_cast<char const *>(&data_) + copy_from, bytes_to_copy);
             // Returns nonzero is exponent is not in range
             if (mpfr_set_exp(num, GetExponent())) {
                 // The only way this can happen is if we hit the magic exponent for NaN/Zero/Inf
@@ -211,10 +230,9 @@ class PackedFloat {
         return ss.str();
     }
 
-
     inline bool operator==(PackedFloat const &rhs) const {
         // This passes -0 == 0 but right now we blow away the sign bit in the conversions of singular values anyway
-        if(IsZero() && rhs.IsZero()) {
+        if (IsZero() && rhs.IsZero()) {
             return true;
         }
         if ((GetSign() == 0) != (rhs.GetSign() == 0)) {

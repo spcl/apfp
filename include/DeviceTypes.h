@@ -12,11 +12,10 @@ using Limb = mp_limb_t;
 #ifdef APFP_USE_GMP_SEMANTICS
 using Exponent = mp_exp_t;
 #else
-using Exponent = mpfr_exp_t;
+using Exponent = mpfr_exp_t;  // In practice, 1 bit less is available, as it is used to pack the sign
 #endif
-/// Sign convention: 0 is positive, anything else is negative
-using Sign = Exponent;  // This will make sure that we are always limb-aligned
-constexpr int kMantissaBytes = kBytes - sizeof(Exponent) - sizeof(Sign);
+using Sign = mpfr_sign_t;  // This is only used on the host-side. On the device, a single bit is used
+constexpr int kMantissaBytes = kBytes - sizeof(Exponent);  // Sign is packed into last bit of exponent
 constexpr int kMantissaBits = 8 * kMantissaBytes;
 using Mantissa = uint8_t[kMantissaBytes];
 static_assert(sizeof(Mantissa) == kMantissaBytes, "Mantissa must be tightly packed.");

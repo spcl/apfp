@@ -110,7 +110,7 @@ PackedFloat Add(PackedFloat const &a_in, PackedFloat const &b_in) {
     // Widening assignments and right shifts of ap_int are sign extended so we specify the casting route
     assert(a_mantissa_shifted >= b_mantissa_shifted);
     ap_uint<kMantissaBits + 1 + lsb_bits> ab_diff_lsb_msb =
-        static_cast<ap_uint<kMantissaBits + 1 + lsb_bits>>(a_mantissa_shifted - b_mantissa_shifted);
+        static_cast<ap_uint<kMantissaBits + 1 + lsb_bits>>(PipelinedSub(a_mantissa_shifted, b_mantissa_shifted));
 #pragma HLS BIND_OP variable = ab_diff_lsb_msb op = sub impl = fabric latency = 4
     assert(!IsMostSignificantBitSet(ab_diff_lsb_msb));
 

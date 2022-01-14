@@ -53,7 +53,8 @@ if(${APFP_COMPUTE_UNITS} GREATER 1)
                           MatrixMultiplication_2.m_axi_b:DDR[0]
                           MatrixMultiplication_2.m_axi_c_read:DDR[0]
                           MatrixMultiplication_2.m_axi_c_write:DDR[0])
-    set(APFP_CONNECTIVITY MatrixMultiplication_2.a_to_kernel:FreeRunningMultiplication_2.a_to_kernel
+    set(APFP_CONNECTIVITY ${APFP_CONNECTIVITY}
+                          MatrixMultiplication_2.a_to_kernel:FreeRunningMultiplication_2.a_to_kernel
                           MatrixMultiplication_2.b_to_kernel:FreeRunningMultiplication_2.b_to_kernel
                           FreeRunningMultiplication_2.ab_from_kernel:MatrixMultiplication_2.ab_from_kernel)
 endif()
@@ -63,7 +64,8 @@ if(${APFP_COMPUTE_UNITS} GREATER 2)
                           MatrixMultiplication_3.m_axi_b:DDR[2]
                           MatrixMultiplication_3.m_axi_c_read:DDR[2]
                           MatrixMultiplication_3.m_axi_c_write:DDR[2])
-    set(APFP_CONNECTIVITY MatrixMultiplication_3.a_to_kernel:FreeRunningMultiplication_3.a_to_kernel
+    set(APFP_CONNECTIVITY ${APFP_CONNECTIVITY}
+                          MatrixMultiplication_3.a_to_kernel:FreeRunningMultiplication_3.a_to_kernel
                           MatrixMultiplication_3.b_to_kernel:FreeRunningMultiplication_3.b_to_kernel
                           FreeRunningMultiplication_3.ab_from_kernel:MatrixMultiplication_3.ab_from_kernel)
 endif()
@@ -73,7 +75,8 @@ if(${APFP_COMPUTE_UNITS} GREATER 3)
                           MatrixMultiplication_4.m_axi_b:DDR[3]
                           MatrixMultiplication_4.m_axi_c_read:DDR[3]
                           MatrixMultiplication_4.m_axi_c_write:DDR[3])
-    set(APFP_CONNECTIVITY MatrixMultiplication_4.a_to_kernel:FreeRunningMultiplication_4.a_to_kernel
+    set(APFP_CONNECTIVITY ${APFP_CONNECTIVITY}
+                          MatrixMultiplication_4.a_to_kernel:FreeRunningMultiplication_4.a_to_kernel
                           MatrixMultiplication_4.b_to_kernel:FreeRunningMultiplication_4.b_to_kernel
                           FreeRunningMultiplication_4.ab_from_kernel:MatrixMultiplication_4.ab_from_kernel)
 endif()

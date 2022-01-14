@@ -44,12 +44,18 @@ set(APFP_PORT_MAPPING MatrixMultiplication_1.m_axi_a:DDR[1]
                       MatrixMultiplication_1.m_axi_b:DDR[1]
                       MatrixMultiplication_1.m_axi_c_read:DDR[1]
                       MatrixMultiplication_1.m_axi_c_write:DDR[1])
+set(APFP_CONNECTIVITY MatrixMultiplication_1.a_to_kernel:FreeRunningMultiplication_1.a_to_kernel
+                      MatrixMultiplication_1.b_to_kernel:FreeRunningMultiplication_1.b_to_kernel
+                      FreeRunningMultiplication_1.ab_from_kernel:MatrixMultiplication_1.ab_from_kernel)
 if(${APFP_COMPUTE_UNITS} GREATER 1)
     set(APFP_PORT_MAPPING ${APFP_PORT_MAPPING}
                           MatrixMultiplication_2.m_axi_a:DDR[0]
                           MatrixMultiplication_2.m_axi_b:DDR[0]
                           MatrixMultiplication_2.m_axi_c_read:DDR[0]
                           MatrixMultiplication_2.m_axi_c_write:DDR[0])
+    set(APFP_CONNECTIVITY MatrixMultiplication_2.a_to_kernel:FreeRunningMultiplication_2.a_to_kernel
+                          MatrixMultiplication_2.b_to_kernel:FreeRunningMultiplication_2.b_to_kernel
+                          FreeRunningMultiplication_2.ab_from_kernel:MatrixMultiplication_2.ab_from_kernel)
 endif()
 if(${APFP_COMPUTE_UNITS} GREATER 2)
     set(APFP_PORT_MAPPING ${APFP_PORT_MAPPING}
@@ -57,6 +63,9 @@ if(${APFP_COMPUTE_UNITS} GREATER 2)
                           MatrixMultiplication_3.m_axi_b:DDR[2]
                           MatrixMultiplication_3.m_axi_c_read:DDR[2]
                           MatrixMultiplication_3.m_axi_c_write:DDR[2])
+    set(APFP_CONNECTIVITY MatrixMultiplication_3.a_to_kernel:FreeRunningMultiplication_3.a_to_kernel
+                          MatrixMultiplication_3.b_to_kernel:FreeRunningMultiplication_3.b_to_kernel
+                          FreeRunningMultiplication_3.ab_from_kernel:MatrixMultiplication_3.ab_from_kernel)
 endif()
 if(${APFP_COMPUTE_UNITS} GREATER 3)
     set(APFP_PORT_MAPPING ${APFP_PORT_MAPPING}
@@ -64,26 +73,41 @@ if(${APFP_COMPUTE_UNITS} GREATER 3)
                           MatrixMultiplication_4.m_axi_b:DDR[3]
                           MatrixMultiplication_4.m_axi_c_read:DDR[3]
                           MatrixMultiplication_4.m_axi_c_write:DDR[3])
+    set(APFP_CONNECTIVITY MatrixMultiplication_4.a_to_kernel:FreeRunningMultiplication_4.a_to_kernel
+                          MatrixMultiplication_4.b_to_kernel:FreeRunningMultiplication_4.b_to_kernel
+                          FreeRunningMultiplication_4.ab_from_kernel:MatrixMultiplication_4.ab_from_kernel)
 endif()
 if(${APFP_COMPUTE_UNITS} GREATER 4)
     message(FATAL_ERROR "More than 4 compute units is not supported.")
 endif()
 
 # Setup FPGA kernel targets
+set(APFP_HLS_FLAGS "-DAP_INT_MAX_W=${APFP_MAX_BITS} -DAPFP_${APFP_SEMANTICS}_SEMANTICS")
+set(APFP_HLS_CONFIG "config_compile -pipeline_style frp\nconfig_dataflow -fifo_depth 16")
+set(APFP_INCLUDE_DIRS include hlslib/include ${CMAKE_BINARY_DIR})
+set(APFP_DEPENDS ${CMAKE_BINARY_DIR}/Config.h
+                 include/ArithmeticOperations.h
+                 include/DeviceTypes.h
+                 include/Karatsuba.h
+                 include/MatrixMultiplication.h
+                 include/PackedFloat.h
+                 include/PipelinedAdd.h)
 add_vitis_kernel(MatrixMultiplication FILES ${APFP_KERNEL_FILES}
                  COMPUTE_UNITS ${APFP_COMPUTE_UNITS}
-                 INCLUDE_DIRS include hlslib/include ${CMAKE_BINARY_DIR}
-                 HLS_FLAGS "-DAP_INT_MAX_W=${APFP_MAX_BITS} -DAPFP_${APFP_SEMANTICS}_SEMANTICS"
-                 HLS_CONFIG "config_compile -pipeline_style frp\nconfig_dataflow -fifo_depth 16"
-                 DEPENDS ${CMAKE_BINARY_DIR}/Config.h
-                         include/ArithmeticOperations.h
-                         include/DeviceTypes.h
-                         include/Karatsuba.h
-                         include/MatrixMultiplication.h
-                         include/PackedFloat.h
-                         include/PipelinedAdd.h
+                 INCLUDE_DIRS ${APFP_INCLUDE_DIRS}
+                 HLS_FLAGS ${APFP_HLS_FLAGS}
+                 HLS_CONFIG ${APFP_HLS_CONFIG}
+                 DEPENDS ${APFP_DEPENDS}
                 PORT_MAPPING ${APFP_PORT_MAPPING})
+add_vitis_kernel(FreeRunningMultiplication FILES ${APFP_KERNEL_FILES}
+                 COMPUTE_UNITS ${APFP_COMPUTE_UNITS}
+                 INCLUDE_DIRS ${APFP_INCLUDE_DIRS}
+                 HLS_FLAGS ${APFP_HLS_FLAGS}
+                 HLS_CONFIG ${APFP_HLS_CONFIG}
+                 DEPENDS ${APFP_DEPENDS})
 add_vitis_program(MatrixMultiplication ${APFP_PLATFORM}
+                  KERNELS MatrixMultiplication FreeRunningMultiplication
+                  CONNECTIVITY ${APFP_CONNECTIVITY}
                   PROFILING ${APFP_PROFILING}
                   DEBUGGING ${APFP_DEBUGGING}
                   SAVE_TEMPS ${APFP_SAVE_TEMPS})

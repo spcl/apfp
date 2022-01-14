@@ -389,6 +389,7 @@ ComputeExit_TilesN:
                         const PackedFloat res = Add(ab, c);
                         c_out.Push(res);
                         c_buffer[n1 * kTileSizeM + m1] = res;
+#pragma HLS DEPENDENCE variable = c_buffer false
                     }
                 }
             }
@@ -398,8 +399,22 @@ ComputeExit_TilesN:
 
 ////////////////////////////////////////////////////////////////////////////////
 
+void FreeRunningMultiplication(hlslib::Stream<PackedFloat> &a_to_kernel, hlslib::Stream<PackedFloat> &b_to_kernel,
+                               hlslib::Stream<PackedFloat> &ab_from_kernel) {
+#pragma HLS INTERFACE axis port = a_to_kernel
+#pragma HLS INTERFACE axis port = b_to_kernel
+#pragma HLS INTERFACE axis port = ab_from_kernel
+#pragma HLS interface ap_ctrl_none port = return
+#pragma HLS PIPELINE II = 1
+    ab_from_kernel.Push(Multiply(a_to_kernel.Pop(), b_to_kernel.Pop()));
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
 void MatrixMultiplication(DramLine const *const a, DramLine const *const b, DramLine const *const c_read,
-                          DramLine *const c_write, const int size_n, const int size_k, int const size_m) {
+                          DramLine *const c_write, const int size_n, const int size_k, int const size_m,
+                          hlslib::Stream<PackedFloat> &a_to_kernel, hlslib::Stream<PackedFloat> &b_to_kernel,
+                          hlslib::Stream<PackedFloat> &ab_from_kernel) {
 #pragma HLS INTERFACE m_axi offset = slave port = a bundle = a
 #pragma HLS INTERFACE m_axi offset = slave port = b bundle = b
 // Even though they actually point to the same memory location, we use two separate interfaces for reading and writing
@@ -413,6 +428,9 @@ void MatrixMultiplication(DramLine const *const a, DramLine const *const b, Dram
 #pragma HLS INTERFACE s_axilite port = size_n
 #pragma HLS INTERFACE s_axilite port = size_k
 #pragma HLS INTERFACE s_axilite port = size_m
+#pragma HLS INTERFACE axis port = a_to_kernel
+#pragma HLS INTERFACE axis port = b_to_kernel
+#pragma HLS INTERFACE axis port = ab_from_kernel
 #pragma HLS STABLE variable = a
 #pragma HLS STABLE variable = b
 #pragma HLS STABLE variable = c_read
@@ -423,24 +441,21 @@ void MatrixMultiplication(DramLine const *const a, DramLine const *const b, Dram
 #pragma HLS DATAFLOW
     hlslib::Stream<PackedFloat, 16> a_to_feeder("a_to_feeder");
     hlslib::Stream<PackedFloat, 16> a_to_entry("a_to_entry");
-    hlslib::Stream<PackedFloat, 16> a_to_kernel("a_to_kernel");
     hlslib::Stream<PackedFloat, 16> b_to_feeder("b_to_feeder");
     hlslib::Stream<PackedFloat, 16> b_to_entry("b_to_entry");
-    hlslib::Stream<PackedFloat, 16> b_to_kernel("b_to_kernel");
     hlslib::Stream<PackedFloat, 16> c_to_feeder("c_to_feeder");
-    hlslib::Stream<PackedFloat, 16> ab_from_kernel("c_feedback");
     hlslib::Stream<PackedFloat, 16> c_to_kernel("c_to_kernel");
     hlslib::Stream<PackedFloat, 16> c_from_kernel("c_from_kernel");
     hlslib::Stream<PackedFloat, 16> c_from_exit("c_from_exit");
     hlslib::Stream<PackedFloat, 16> c_from_drainer("c_from_drainer");
     HLSLIB_DATAFLOW_INIT();
     HLSLIB_DATAFLOW_FUNCTION(ReadA, a, a_to_feeder, size_n, size_k, size_m);
-    HLSLIB_DATAFLOW_FUNCTION(FeedA, a_to_feeder, a_to_kernel, size_n, size_k, size_m);
+    HLSLIB_DATAFLOW_FUNCTION(FeedA, a_to_feeder, a_to_entry, size_n, size_k, size_m);
     HLSLIB_DATAFLOW_FUNCTION(ReadB, b, b_to_feeder, size_n, size_k, size_m);
-    HLSLIB_DATAFLOW_FUNCTION(FeedB, b_to_feeder, b_to_kernel, size_n, size_k, size_m);
+    HLSLIB_DATAFLOW_FUNCTION(FeedB, b_to_feeder, b_to_entry, size_n, size_k, size_m);
     HLSLIB_DATAFLOW_FUNCTION(ReadC, c_read, c_to_feeder, size_n, size_m);
     HLSLIB_DATAFLOW_FUNCTION(FeedC, c_to_feeder, c_to_kernel, size_n, size_k, size_m);
-    HLSLIB_DATAFLOW_FUNCTION(ComputeEntry, a_to_feeder, b_to_feeder, a_to_kernel, b_to_kernel, size_n, size_k, size_m);
+    HLSLIB_DATAFLOW_FUNCTION(ComputeEntry, a_to_entry, b_to_entry, a_to_kernel, b_to_kernel, size_n, size_k, size_m);
     HLSLIB_DATAFLOW_FUNCTION(ComputeExit, ab_from_kernel, c_to_kernel, c_from_kernel, size_n, size_k, size_m);
     HLSLIB_DATAFLOW_FUNCTION(DrainC, c_from_kernel, c_from_drainer, size_n, size_k, size_m);
     HLSLIB_DATAFLOW_FUNCTION(WriteC, c_from_drainer, c_write, size_n, size_m);

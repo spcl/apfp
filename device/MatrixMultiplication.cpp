@@ -330,41 +330,65 @@ WriteC_TilesN:
 
 ////////////////////////////////////////////////////////////////////////////////
 
-void Compute(hlslib::Stream<PackedFloat> &a_in, hlslib::Stream<PackedFloat> &b_in, hlslib::Stream<PackedFloat> &c_in,
-             hlslib::Stream<PackedFloat> &c_out, int const size_n, int const size_k, int const size_m) {
-    PackedFloat a_buffer;  // Just to make A symmetric to B and C
+void ComputeEntry(hlslib::Stream<PackedFloat> &a_in, hlslib::Stream<PackedFloat> &b_in,
+                  hlslib::Stream<PackedFloat> &a_out, hlslib::Stream<PackedFloat> &b_out, int const size_n,
+                  int const size_k, int const size_m) {
+    PackedFloat a_buffer;
     PackedFloat b_buffer[kTileSizeM];
-    PackedFloat c_buffer[kTileSizeN * kTileSizeM];
     const int tiles_n = hlslib::CeilDivide(size_n, kTileSizeN);
     const int tiles_m = hlslib::CeilDivide(size_m, kTileSizeM);
-Compute_TilesN:
+ComputeEntry_TilesN:
     for (int n0 = 0; n0 < tiles_n; ++n0) {
-    Compute_TilesM:
+    ComputeEntry_TilesM:
         for (int m0 = 0; m0 < tiles_m; ++m0) {
-        Compute_K:
+        ComputeEntry_K:
             for (int k = 0; k < size_k; ++k) {
-            Compute_N:
+            ComputeEntry_N:
                 for (int n1 = 0; n1 < kTileSizeN; ++n1) {
-                Compute_M:
+                ComputeEntry_M:
                     for (int m1 = 0; m1 < kTileSizeM; ++m1) {
 #pragma HLS PIPELINE II = 1
 #pragma HLS LOOP_FLATTEN
                         const PackedFloat a_read = a_in.Pop();
                         const PackedFloat b_read = b_in.Pop();
-                        const PackedFloat c_read = c_in.Pop();
                         const PackedFloat a = (m1 == 0) ? a_read : a_buffer;
                         const PackedFloat b = (n1 == 0) ? b_read : b_buffer[m1];
-                        const PackedFloat c = (k == 0) ? c_read : c_buffer[n1 * kTileSizeM + m1];
                         a_buffer = a;
                         b_buffer[m1] = b;
                         // Ignore contributions from out-of-bound indices
                         const bool in_bounds = (n0 * kTileSizeN + n1 < size_n) && (m0 * kTileSizeM + m1 < size_m);
-                        // Meat of the computation
-                        const auto res = MultiplyAccumulate(in_bounds ? a : PackedFloat::Zero(),
-                                                            in_bounds ? b : PackedFloat::Zero(), c);
-                        // Write back to buffer
-                        c_buffer[n1 * kTileSizeM + m1] = res;
+                        a_out.Push(in_bounds ? a : PackedFloat::Zero());
+                        b_out.Push(in_bounds ? b : PackedFloat::Zero());
+                    }
+                }
+            }
+        }
+    }
+}
+
+void ComputeExit(hlslib::Stream<PackedFloat> &ab_in, hlslib::Stream<PackedFloat> &c_in,
+                 hlslib::Stream<PackedFloat> &c_out, int const size_n, int const size_k, int const size_m) {
+    PackedFloat c_buffer[kTileSizeN * kTileSizeM];
+    const int tiles_n = hlslib::CeilDivide(size_n, kTileSizeN);
+    const int tiles_m = hlslib::CeilDivide(size_m, kTileSizeM);
+ComputeExit_TilesN:
+    for (int n0 = 0; n0 < tiles_n; ++n0) {
+    ComputeExit_TilesM:
+        for (int m0 = 0; m0 < tiles_m; ++m0) {
+        ComputeExit_K:
+            for (int k = 0; k < size_k; ++k) {
+            ComputeExit_N:
+                for (int n1 = 0; n1 < kTileSizeN; ++n1) {
+                ComputeExit_M:
+                    for (int m1 = 0; m1 < kTileSizeM; ++m1) {
+#pragma HLS PIPELINE II = 1
+#pragma HLS LOOP_FLATTEN
+                        const PackedFloat ab = ab_in.Pop();
+                        const PackedFloat c_read = c_in.Pop();
+                        const PackedFloat c = (k == 0) ? c_read : c_buffer[n1 * kTileSizeM + m1];
+                        const PackedFloat res = Add(ab, c);
                         c_out.Push(res);
+                        c_buffer[n1 * kTileSizeM + m1] = res;
                     }
                 }
             }
@@ -398,12 +422,16 @@ void MatrixMultiplication(DramLine const *const a, DramLine const *const b, Dram
 #pragma HLS STABLE variable = size_m
 #pragma HLS DATAFLOW
     hlslib::Stream<PackedFloat, 16> a_to_feeder("a_to_feeder");
+    hlslib::Stream<PackedFloat, 16> a_to_entry("a_to_entry");
     hlslib::Stream<PackedFloat, 16> a_to_kernel("a_to_kernel");
     hlslib::Stream<PackedFloat, 16> b_to_feeder("b_to_feeder");
+    hlslib::Stream<PackedFloat, 16> b_to_entry("b_to_entry");
     hlslib::Stream<PackedFloat, 16> b_to_kernel("b_to_kernel");
     hlslib::Stream<PackedFloat, 16> c_to_feeder("c_to_feeder");
+    hlslib::Stream<PackedFloat, 16> ab_from_kernel("c_feedback");
     hlslib::Stream<PackedFloat, 16> c_to_kernel("c_to_kernel");
     hlslib::Stream<PackedFloat, 16> c_from_kernel("c_from_kernel");
+    hlslib::Stream<PackedFloat, 16> c_from_exit("c_from_exit");
     hlslib::Stream<PackedFloat, 16> c_from_drainer("c_from_drainer");
     HLSLIB_DATAFLOW_INIT();
     HLSLIB_DATAFLOW_FUNCTION(ReadA, a, a_to_feeder, size_n, size_k, size_m);
@@ -412,7 +440,8 @@ void MatrixMultiplication(DramLine const *const a, DramLine const *const b, Dram
     HLSLIB_DATAFLOW_FUNCTION(FeedB, b_to_feeder, b_to_kernel, size_n, size_k, size_m);
     HLSLIB_DATAFLOW_FUNCTION(ReadC, c_read, c_to_feeder, size_n, size_m);
     HLSLIB_DATAFLOW_FUNCTION(FeedC, c_to_feeder, c_to_kernel, size_n, size_k, size_m);
-    HLSLIB_DATAFLOW_FUNCTION(Compute, a_to_kernel, b_to_kernel, c_to_kernel, c_from_kernel, size_n, size_k, size_m);
+    HLSLIB_DATAFLOW_FUNCTION(ComputeEntry, a_to_feeder, b_to_feeder, a_to_kernel, b_to_kernel, size_n, size_k, size_m);
+    HLSLIB_DATAFLOW_FUNCTION(ComputeExit, ab_from_kernel, c_to_kernel, c_from_kernel, size_n, size_k, size_m);
     HLSLIB_DATAFLOW_FUNCTION(DrainC, c_from_kernel, c_from_drainer, size_n, size_k, size_m);
     HLSLIB_DATAFLOW_FUNCTION(WriteC, c_from_drainer, c_write, size_n, size_m);
     HLSLIB_DATAFLOW_FINALIZE();

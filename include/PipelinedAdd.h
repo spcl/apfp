@@ -5,12 +5,16 @@
 
 namespace {
 
+constexpr int kPipelinedAddBaseBits = 256;
+
 constexpr int AddLatency(int bits) {
     // 4 is the maximum supported latency of integer adds using the BIND_OP pragma
-    return (bits <= 64) ? 0 : (bits <= 128) ? 1 : (bits <= 192) ? 2 : (bits <= 256) ? 3 : 4;
+    return (bits <= kPipelinedAddBaseBits / 4)
+               ? 0
+               : (bits <= kPipelinedAddBaseBits / 2)
+                     ? 1
+                     : (bits <= 3 * (kPipelinedAddBaseBits / 4)) ? 2 : (bits <= kPipelinedAddBaseBits) ? 3 : 4;
 }
-
-constexpr int kPipelinedAddBaseBits = 256;
 
 template <int total_bits, int num_steps, int step>
 struct _PipelinedAddImpl {

@@ -13,7 +13,7 @@ set(APFP_COMPUTE_UNITS 1 CACHE STRING "Number of replications of the kernel to i
 set(APFP_SEMANTICS "MPFR" CACHE STRING "Which semantics to use for floating point operations [GMP/MPFR].")
 set(APFP_DEBUGGING OFF CACHE BOOL "Enable debugging in generated kernels.")
 set(APFP_PROFILING OFF CACHE BOOL "Enable profiling in generated kernels.")
-set(APFP_SAVE_TEMPS OFF CACHE BOOL "Save temporary files from kernel builds.")
+set(APFP_SAVE_TEMPS ON CACHE BOOL "Save temporary files from kernel builds.")
 set_property(CACHE APFP_SEMANTICS PROPERTY STRINGS GMP MPFR)
 
 # Validation and derived numbers

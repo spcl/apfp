@@ -7,6 +7,7 @@ set(CMAKE_CXX_STANDARD 17)
 set(APFP_PLATFORM "xilinx_u250_gen3x16_xdma_3_1_202020_1" CACHE STRING "Platform string for Vitis.")
 set(APFP_BITS 1024 CACHE STRING "Number of bits to use for a floating point number, including mantissa, exponent, and sign.")
 set(APFP_MULT_BASE_BITS 18 CACHE STRING "Number of bits to bottom out the multiplication at and use native multiplication.")
+set(APFP_STREAMING_BASE_BITS 256 CACHE STRING "Bit width where Karatsuba will be implemented as a single pipeline.")
 set(APFP_TILE_SIZE_N 32 CACHE STRING "Tile size in the N-dimension when running matrix-matrix multiplication.")
 set(APFP_TILE_SIZE_M 32 CACHE STRING "Tile size in the M-dimension when running matrix-matrix multiplication.")
 set(APFP_COMPUTE_UNITS 1 CACHE STRING "Number of replications of the kernel to instantiate.")
@@ -36,8 +37,7 @@ include_directories(${CMAKE_BINARY_DIR} include SYSTEM hlslib/include ${Vitis_IN
 configure_file(include/Config.h.in Config.h)
 
 set(APFP_KERNEL_FILES device/MatrixMultiplication.cpp
-                      device/ArithmeticOperations.cpp
-                      device/Karatsuba.cpp)
+                      device/ArithmeticOperations.cpp)
 
 # Mapping to DDR ports
 set(APFP_PORT_MAPPING MatrixMultiplication_1.m_axi_a:DDR[1]

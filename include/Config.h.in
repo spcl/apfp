@@ -3,6 +3,7 @@
 constexpr int kBits = ${APFP_BITS};
 constexpr int kBytes = kBits / 8;
 constexpr int kMultBaseBits = ${APFP_MULT_BASE_BITS};
+constexpr int kStreamingBaseBits = ${APFP_STREAMING_BASE_BITS};
 constexpr int kTileSizeN = ${APFP_TILE_SIZE_N};
 constexpr int kTileSizeM = ${APFP_TILE_SIZE_M};
 constexpr int kComputeUnits = ${APFP_COMPUTE_UNITS};

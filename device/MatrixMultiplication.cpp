@@ -6,6 +6,7 @@
 
 #include "ArithmeticOperations.h"
 #include "Karatsuba.h"
+#include "PipelinedAdd.h"
 
 // Annoyingly we have to specialize the innermost loop on whether multiple DRAM flits per number are required or not,
 // because HLS otherwise gets confused by pragmas applied to a loop of size 1 in the latter case.
@@ -423,16 +424,114 @@ ComputeExit_TilesN:
 
 ////////////////////////////////////////////////////////////////////////////////
 
+template <int bits>
+void StreamingKaratsubaEntry(hlslib::Stream<ap_uint<bits>> &a_in, hlslib::Stream<ap_uint<bits>> &b_in,
+                             hlslib::Stream<ap_uint<bits / 2>> &a0_out, hlslib::Stream<ap_uint<bits / 2>> &b0_out,
+                             hlslib::Stream<ap_uint<bits / 2>> &a1_out, hlslib::Stream<ap_uint<bits / 2>> &b1_out,
+                             hlslib::Stream<ap_uint<bits / 2>> &a0a1_out, hlslib::Stream<ap_uint<bits / 2>> &b0b1_out,
+                             hlslib::Stream<bool> &sign_out) {
+#pragma HLS PIPELINE II = 1
+    using Half = ap_uint<bits / 2>;
+
+    const auto a = a_in.Pop();
+    const auto b = b_in.Pop();
+
+    // Decompose input operands into halves for the recursive step
+    Half a0 = a.range(bits / 2 - 1, 0);
+    Half a1 = a.range(bits - 1, bits / 2);
+    Half b0 = b.range(bits / 2 - 1, 0);
+    Half b1 = b.range(bits - 1, bits / 2);
+
+    // Compute |a_0 - a_1| and sign(a_0 - a_1)
+    bool a0a1_is_neg = a0 < a1;
+    Half a0a1 = PipelinedSub(a0a1_is_neg ? a1 : a0, a0a1_is_neg ? a0 : a1);
+    // Compute |b_1 - b_0| and sign(b_1 - b_0)
+    bool b0b1_is_neg = b1 < b0;
+    Half b0b1 = PipelinedSub(b0b1_is_neg ? b0 : b1, b0b1_is_neg ? b1 : b0);
+
+    // XOR the two signs to get the final sign
+    bool a0a1b0b1_is_neg = a0a1_is_neg != b0b1_is_neg;
+
+    a0_out.Push(a0);
+    a1_out.Push(a1);
+    b0_out.Push(b0);
+    b1_out.Push(b1);
+    a0a1_out.Push(a0a1);
+    b0b1_out.Push(b0b1);
+    sign_out.Push(a0a1b0b1_is_neg);
+}
+
+template <int bits>
+void StreamingKaratsubaExit(hlslib::Stream<ap_uint<bits>> &z0_in, hlslib::Stream<ap_uint<bits>> &z2_in,
+                            hlslib::Stream<bool> &sign_in, hlslib::Stream<ap_uint<bits>> &a0a1b0b1_in,
+                            hlslib::Stream<ap_uint<2 * bits>> &result_out) {
+#pragma HLS PIPELINE II = 1
+    using Full = ap_uint<bits>;
+
+    // Get results from recursive modules
+    const Full z0 = z0_in.Pop();
+    const Full z2 = z2_in.Pop();
+    const bool a0a1b0b1_is_neg = sign_in.Pop();
+    const Full a0a1b0b1 = a0a1b0b1_in.Pop();
+
+    const ap_int<bits + 2> a0a1b0b1_signed = a0a1b0b1_is_neg ? -ap_int<bits + 1>(a0a1b0b1) : ap_int<bits + 2>(a0a1b0b1);
+    const ap_uint<bits + 2> z1 = PipelinedAdd<bits + 2>(ap_uint<bits + 2>(a0a1b0b1_signed), PipelinedAdd<bits>(z0, z2));
+
+    // Align everything and combine
+    const ap_uint<(2 * bits)> z0z2 = z0 | (ap_uint<(2 * bits)>(z2) << bits);
+    const ap_uint<(bits + 2 + bits / 2)> z1_aligned = ap_uint<(bits + 2 + bits / 2)>(z1) << (bits / 2);
+    const ap_uint<(2 * bits) + 1> z = PipelinedAdd<2 * bits>(z1_aligned, z0z2);
+
+    result_out.Push(z);
+}
+
+template <int bits>
+auto StreamingKaratsuba(hlslib::Stream<ap_uint<bits>> &a_in, hlslib::Stream<ap_uint<bits>> &b_in,
+                        hlslib::Stream<ap_uint<2 * bits>> &result_out) ->
+    typename std::enable_if<(bits > kStreamingBaseBits), void>::type {
+    static_assert(bits % 2 == 0, "Number of bits must be even.");
+#pragma HLS INLINE
+    hlslib::Stream<ap_uint<bits / 2>> a0;
+    hlslib::Stream<ap_uint<bits / 2>> b0;
+    hlslib::Stream<ap_uint<bits / 2>> a1;
+    hlslib::Stream<ap_uint<bits / 2>> b1;
+    hlslib::Stream<ap_uint<bits / 2>> a0a1;
+    hlslib::Stream<ap_uint<bits / 2>> b0b1;
+    hlslib::Stream<bool, 512> sign;
+    hlslib::Stream<ap_uint<bits>> z0;
+    hlslib::Stream<ap_uint<bits>> z2;
+    hlslib::Stream<ap_uint<bits>> a0a1b0b1;
+    StreamingKaratsubaEntry<bits>(a_in, b_in, a0, b0, a1, b1, a0a1, b0b1, sign);
+    StreamingKaratsuba<(bits / 2)>(a0, b0, z0);
+    StreamingKaratsuba<(bits / 2)>(a1, b1, z2);
+    StreamingKaratsuba<(bits / 2)>(a0a1, b0b1, a0a1b0b1);
+    StreamingKaratsubaExit<bits>(z0, z2, sign, a0a1b0b1, result_out);
+}
+
+template <int bits>
+auto StreamingKaratsuba(hlslib::Stream<ap_uint<bits>> &a_in, hlslib::Stream<ap_uint<bits>> &b_in,
+                        hlslib::Stream<ap_uint<2 * bits>> &result_out) ->
+    typename std::enable_if<(bits <= kStreamingBaseBits), void>::type {
+#pragma HLS PIPELINE II = 1
+    result_out.Push(Karatsuba<bits>(a_in.Pop(), b_in.Pop()));
+}
+
+void Truncate(hlslib::Stream<ap_uint<2 * kMantissaBits>> &ab_in, hlslib::Stream<ap_uint<kMantissaBits + 1>> &ab_out) {
+#pragma HLS PIPELINE II = 1
+    const ap_uint<kMantissaBits + 1> ab_mantissa = ab_in.Pop() >> (kMantissaBits - 1);
+    ab_out.Push(ab_mantissa);
+}
+
 void FreeRunningMultiplication(hlslib::Stream<MantissaFlat> &a_to_kernel, hlslib::Stream<MantissaFlat> &b_to_kernel,
                                hlslib::Stream<ap_uint<kMantissaBits + 1>> &ab_from_kernel) {
 #pragma HLS INTERFACE axis port = a_to_kernel
 #pragma HLS INTERFACE axis port = b_to_kernel
 #pragma HLS INTERFACE axis port = ab_from_kernel
 #pragma HLS interface ap_ctrl_none port = return
-#pragma HLS PIPELINE II = 1
-    const ap_uint<kMantissaBits + 1> ab_mantissa =
-        Karatsuba(a_to_kernel.Pop(), b_to_kernel.Pop()) >> (kMantissaBits - 1);
-    ab_from_kernel.Push(ab_mantissa);
+#pragma HLS DATAFLOW
+    hlslib::Stream<ap_uint<2 * kMantissaBits>> truncate;
+    StreamingKaratsuba<kMantissaBits>(a_to_kernel, b_to_kernel, truncate);
+    Truncate(truncate, ab_from_kernel);
 }
 
 ////////////////////////////////////////////////////////////////////////////////

@@ -66,7 +66,35 @@ if(${APFP_COMPUTE_UNITS} GREATER 3)
                           MatrixMultiplication_4.m_axi_c_write:DDR[3])
 endif()
 if(${APFP_COMPUTE_UNITS} GREATER 4)
-    message(FATAL_ERROR "More than 4 compute units is not supported.")
+    set(APFP_PORT_MAPPING ${APFP_PORT_MAPPING}
+                          MatrixMultiplication_5.m_axi_a:DDR[1]
+                          MatrixMultiplication_5.m_axi_b:DDR[1]
+                          MatrixMultiplication_5.m_axi_c_read:DDR[1]
+                          MatrixMultiplication_5.m_axi_c_write:DDR[1])
+endif()
+if(${APFP_COMPUTE_UNITS} GREATER 5)
+    set(APFP_PORT_MAPPING ${APFP_PORT_MAPPING}
+                          MatrixMultiplication_6.m_axi_a:DDR[0]
+                          MatrixMultiplication_6.m_axi_b:DDR[0]
+                          MatrixMultiplication_6.m_axi_c_read:DDR[0]
+                          MatrixMultiplication_6.m_axi_c_write:DDR[0])
+endif()
+if(${APFP_COMPUTE_UNITS} GREATER 6)
+    set(APFP_PORT_MAPPING ${APFP_PORT_MAPPING}
+                          MatrixMultiplication_7.m_axi_a:DDR[2]
+                          MatrixMultiplication_7.m_axi_b:DDR[2]
+                          MatrixMultiplication_7.m_axi_c_read:DDR[2]
+                          MatrixMultiplication_7.m_axi_c_write:DDR[2])
+endif()
+if(${APFP_COMPUTE_UNITS} GREATER 7)
+    set(APFP_PORT_MAPPING ${APFP_PORT_MAPPING}
+                          MatrixMultiplication_8.m_axi_a:DDR[3]
+                          MatrixMultiplication_8.m_axi_b:DDR[3]
+                          MatrixMultiplication_8.m_axi_c_read:DDR[3]
+                          MatrixMultiplication_8.m_axi_c_write:DDR[3])
+endif()
+if(${APFP_COMPUTE_UNITS} GREATER 8)
+    message(FATAL_ERROR "More than 8 compute units is not supported.")
 endif()
 
 # Setup FPGA kernel targets

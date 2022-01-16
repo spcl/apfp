@@ -95,6 +95,11 @@ class PackedFloat {
         data_.set_bit(kBits - 1, sign);
     }
 
+    void SetSignExponent(ap_uint<8 * sizeof(Exponent)> const &sign_exponent) {
+#pragma HLS INLINE
+        data_.range(kBits - 1, kBits - 8 * sizeof(Exponent)) = sign_exponent;
+    }
+
     DramLine GetFlit(const size_t i) const {
 #pragma HLS INLINE
         return data_.range((i + 1) * 512 - 1, i * 512);
@@ -113,10 +118,15 @@ class PackedFloat {
         }
     }
 
+    void SetZero() {
+#pragma HLS INLINE
+        data_ = 0;
+    }
+
     static PackedFloat Zero() {
 #pragma HLS INLINE
         PackedFloat x;
-        x.data_ = 0;
+        x.SetZero();
         return x;
     }
 

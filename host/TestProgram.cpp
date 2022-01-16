@@ -23,10 +23,10 @@ struct MpfrWrapper {
 };
 
 #ifdef HLSLIB_SIMULATE_OPENCL
-void RunFreeRunningKernel(hlslib::Stream<PackedFloat> &a_in, hlslib::Stream<PackedFloat> &b_in,
-                          hlslib::Stream<PackedFloat> &ab_out) {
+void RunFreeRunningKernel(hlslib::Stream<MantissaFlat> &a_mantissa_in, hlslib::Stream<MantissaFlat> &b_mantissa_in,
+                          hlslib::Stream<ap_uint<kMantissaBits + 1>> &ab_mantissa_out) {
     while (true) {
-        FreeRunningMultiplication(a_in, b_in, ab_out);
+        FreeRunningMultiplication(a_mantissa_in, b_mantissa_in, ab_mantissa_out);
     }
 }
 
@@ -119,9 +119,9 @@ bool RunTest(std::string const &kernel_path, int size_n, int size_k, int size_m,
     // In simulation mode, this will call the function "MatrixMultiplication" and run it in software.
     // Otherwise, the provided path to a kernel binary will be loaded and executed.
     std::vector<hlslib::ocl::Kernel> kernels;
-    hlslib::Stream<PackedFloat> a_to_kernel[kComputeUnits];
-    hlslib::Stream<PackedFloat> b_to_kernel[kComputeUnits];
-    hlslib::Stream<PackedFloat> ab_from_kernel[kComputeUnits];
+    hlslib::Stream<MantissaFlat> a_to_kernel[kComputeUnits];
+    hlslib::Stream<MantissaFlat> b_to_kernel[kComputeUnits];
+    hlslib::Stream<ap_uint<kMantissaBits + 1>> ab_from_kernel[kComputeUnits];
     for (int i = 0; i < kComputeUnits; ++i) {
         kernels.emplace_back(program.MakeKernel(
             MatrixMultiplication, "MatrixMultiplication", a_device[i], b_device[i], c_device[i], c_device[i],

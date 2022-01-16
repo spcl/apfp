@@ -86,6 +86,10 @@ if(${APFP_COMPUTE_UNITS} GREATER 4)
                           MatrixMultiplication_5.m_axi_b:DDR[1]
                           MatrixMultiplication_5.m_axi_c_read:DDR[1]
                           MatrixMultiplication_5.m_axi_c_write:DDR[1])
+    set(APFP_CONNECTIVITY ${APFP_CONNECTIVITY}
+                          MatrixMultiplication_5.a_to_kernel:FreeRunningMultiplication_5.a_to_kernel
+                          MatrixMultiplication_5.b_to_kernel:FreeRunningMultiplication_5.b_to_kernel
+                          FreeRunningMultiplication_5.ab_from_kernel:MatrixMultiplication_5.ab_from_kernel)
 endif()
 if(${APFP_COMPUTE_UNITS} GREATER 5)
     set(APFP_PORT_MAPPING ${APFP_PORT_MAPPING}
@@ -93,6 +97,10 @@ if(${APFP_COMPUTE_UNITS} GREATER 5)
                           MatrixMultiplication_6.m_axi_b:DDR[0]
                           MatrixMultiplication_6.m_axi_c_read:DDR[0]
                           MatrixMultiplication_6.m_axi_c_write:DDR[0])
+    set(APFP_CONNECTIVITY ${APFP_CONNECTIVITY}
+                          MatrixMultiplication_6.a_to_kernel:FreeRunningMultiplication_6.a_to_kernel
+                          MatrixMultiplication_6.b_to_kernel:FreeRunningMultiplication_6.b_to_kernel
+                          FreeRunningMultiplication_6.ab_from_kernel:MatrixMultiplication_6.ab_from_kernel)
 endif()
 if(${APFP_COMPUTE_UNITS} GREATER 6)
     set(APFP_PORT_MAPPING ${APFP_PORT_MAPPING}
@@ -100,6 +108,10 @@ if(${APFP_COMPUTE_UNITS} GREATER 6)
                           MatrixMultiplication_7.m_axi_b:DDR[2]
                           MatrixMultiplication_7.m_axi_c_read:DDR[2]
                           MatrixMultiplication_7.m_axi_c_write:DDR[2])
+    set(APFP_CONNECTIVITY ${APFP_CONNECTIVITY}
+                          MatrixMultiplication_7.a_to_kernel:FreeRunningMultiplication_7.a_to_kernel
+                          MatrixMultiplication_7.b_to_kernel:FreeRunningMultiplication_7.b_to_kernel
+                          FreeRunningMultiplication_7.ab_from_kernel:MatrixMultiplication_7.ab_from_kernel)
 endif()
 if(${APFP_COMPUTE_UNITS} GREATER 7)
     set(APFP_PORT_MAPPING ${APFP_PORT_MAPPING}
@@ -107,6 +119,10 @@ if(${APFP_COMPUTE_UNITS} GREATER 7)
                           MatrixMultiplication_8.m_axi_b:DDR[3]
                           MatrixMultiplication_8.m_axi_c_read:DDR[3]
                           MatrixMultiplication_8.m_axi_c_write:DDR[3])
+    set(APFP_CONNECTIVITY ${APFP_CONNECTIVITY}
+                          MatrixMultiplication_8.a_to_kernel:FreeRunningMultiplication_8.a_to_kernel
+                          MatrixMultiplication_8.b_to_kernel:FreeRunningMultiplication_8.b_to_kernel
+                          FreeRunningMultiplication_8.ab_from_kernel:MatrixMultiplication_8.ab_from_kernel)
 endif()
 if(${APFP_COMPUTE_UNITS} GREATER 8)
     message(FATAL_ERROR "More than 8 compute units is not supported.")

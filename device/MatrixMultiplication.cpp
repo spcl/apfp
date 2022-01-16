@@ -423,16 +423,16 @@ ComputeExit_TilesN:
 
 ////////////////////////////////////////////////////////////////////////////////
 
-void FreeRunningMultiplication(hlslib::Stream<MantissaFlat> &a_mantissa_in, hlslib::Stream<MantissaFlat> &b_mantissa_in,
-                               hlslib::Stream<ap_uint<kMantissaBits + 1>> &ab_mantissa_out) {
-#pragma HLS INTERFACE axis port = a_mantissa_in
-#pragma HLS INTERFACE axis port = b_mantissa_in
-#pragma HLS INTERFACE axis port = ab_mantissa_out
+void FreeRunningMultiplication(hlslib::Stream<MantissaFlat> &a_to_kernel, hlslib::Stream<MantissaFlat> &b_to_kernel,
+                               hlslib::Stream<ap_uint<kMantissaBits + 1>> &ab_from_kernel) {
+#pragma HLS INTERFACE axis port = a_to_kernel
+#pragma HLS INTERFACE axis port = b_to_kernel
+#pragma HLS INTERFACE axis port = ab_from_kernel
 #pragma HLS interface ap_ctrl_none port = return
 #pragma HLS PIPELINE II = 1
     const ap_uint<kMantissaBits + 1> ab_mantissa =
-        Karatsuba(a_mantissa_in.Pop(), b_mantissa_in.Pop()) >> (kMantissaBits - 1);
-    ab_mantissa_out.Push(ab_mantissa);
+        Karatsuba(a_to_kernel.Pop(), b_to_kernel.Pop()) >> (kMantissaBits - 1);
+    ab_from_kernel.Push(ab_mantissa);
 }
 
 ////////////////////////////////////////////////////////////////////////////////

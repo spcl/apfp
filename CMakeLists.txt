@@ -35,70 +35,62 @@ include_directories(${CMAKE_BINARY_DIR} include SYSTEM hlslib/include ${Vitis_IN
 
 configure_file(include/Config.h.in Config.h)
 
-set(APFP_KERNEL_FILES device/MatrixMultiplication.cpp
+set(APFP_KERNEL_FILES device/Microbenchmark.cpp
                       device/ArithmeticOperations.cpp
                       device/Karatsuba.cpp)
 
 # Mapping to DDR ports
-set(APFP_PORT_MAPPING MatrixMultiplication_1.m_axi_a:DDR[1]
-                      MatrixMultiplication_1.m_axi_b:DDR[1]
-                      MatrixMultiplication_1.m_axi_c_read:DDR[1]
-                      MatrixMultiplication_1.m_axi_c_write:DDR[1])
+set(APFP_PORT_MAPPING Microbenchmark_1.m_axi_a:DDR[1]
+                      Microbenchmark_1.m_axi_b:DDR[1]
+                      Microbenchmark_1.m_axi_c:DDR[1])
 if(${APFP_COMPUTE_UNITS} GREATER 1)
     set(APFP_PORT_MAPPING ${APFP_PORT_MAPPING}
-                          MatrixMultiplication_2.m_axi_a:DDR[0]
-                          MatrixMultiplication_2.m_axi_b:DDR[0]
-                          MatrixMultiplication_2.m_axi_c_read:DDR[0]
-                          MatrixMultiplication_2.m_axi_c_write:DDR[0])
+                          Microbenchmark_2.m_axi_a:DDR[0]
+                          Microbenchmark_2.m_axi_b:DDR[0]
+                          Microbenchmark_2.m_axi_c:DDR[0])
 endif()
 if(${APFP_COMPUTE_UNITS} GREATER 2)
     set(APFP_PORT_MAPPING ${APFP_PORT_MAPPING}
-                          MatrixMultiplication_3.m_axi_a:DDR[2]
-                          MatrixMultiplication_3.m_axi_b:DDR[2]
-                          MatrixMultiplication_3.m_axi_c_read:DDR[2]
-                          MatrixMultiplication_3.m_axi_c_write:DDR[2])
+                          Microbenchmark_3.m_axi_a:DDR[2]
+                          Microbenchmark_3.m_axi_b:DDR[2]
+                          Microbenchmark_3.m_axi_c:DDR[2])
 endif()
 if(${APFP_COMPUTE_UNITS} GREATER 3)
     set(APFP_PORT_MAPPING ${APFP_PORT_MAPPING}
-                          MatrixMultiplication_4.m_axi_a:DDR[3]
-                          MatrixMultiplication_4.m_axi_b:DDR[3]
-                          MatrixMultiplication_4.m_axi_c_read:DDR[3]
-                          MatrixMultiplication_4.m_axi_c_write:DDR[3])
+                          Microbenchmark_4.m_axi_a:DDR[3]
+                          Microbenchmark_4.m_axi_b:DDR[3]
+                          Microbenchmark_4.m_axi_c:DDR[3])
 endif()
 if(${APFP_COMPUTE_UNITS} GREATER 4)
     set(APFP_PORT_MAPPING ${APFP_PORT_MAPPING}
-                          MatrixMultiplication_5.m_axi_a:DDR[1]
-                          MatrixMultiplication_5.m_axi_b:DDR[1]
-                          MatrixMultiplication_5.m_axi_c_read:DDR[1]
-                          MatrixMultiplication_5.m_axi_c_write:DDR[1])
+                          Microbenchmark_5.m_axi_a:DDR[1]
+                          Microbenchmark_5.m_axi_b:DDR[1]
+                          Microbenchmark_5.m_axi_c:DDR[1])
 endif()
 if(${APFP_COMPUTE_UNITS} GREATER 5)
     set(APFP_PORT_MAPPING ${APFP_PORT_MAPPING}
-                          MatrixMultiplication_6.m_axi_a:DDR[0]
-                          MatrixMultiplication_6.m_axi_b:DDR[0]
-                          MatrixMultiplication_6.m_axi_c_read:DDR[0]
-                          MatrixMultiplication_6.m_axi_c_write:DDR[0])
+                          Microbenchmark_6.m_axi_a:DDR[0]
+                          Microbenchmark_6.m_axi_b:DDR[0]
+                          Microbenchmark_6.m_axi_c:DDR[0])
 endif()
 if(${APFP_COMPUTE_UNITS} GREATER 6)
     set(APFP_PORT_MAPPING ${APFP_PORT_MAPPING}
-                          MatrixMultiplication_7.m_axi_a:DDR[2]
-                          MatrixMultiplication_7.m_axi_b:DDR[2]
-                          MatrixMultiplication_7.m_axi_c_read:DDR[2]
-                          MatrixMultiplication_7.m_axi_c_write:DDR[2])
+                          Microbenchmark_7.m_axi_a:DDR[2]
+                          Microbenchmark_7.m_axi_b:DDR[2]
+                          Microbenchmark_7.m_axi_c:DDR[2])
 endif()
 if(${APFP_COMPUTE_UNITS} GREATER 7)
     set(APFP_PORT_MAPPING ${APFP_PORT_MAPPING}
-                          MatrixMultiplication_8.m_axi_a:DDR[3]
-                          MatrixMultiplication_8.m_axi_b:DDR[3]
-                          MatrixMultiplication_8.m_axi_c_read:DDR[3]
-                          MatrixMultiplication_8.m_axi_c_write:DDR[3])
+                          Microbenchmark_8.m_axi_a:DDR[3]
+                          Microbenchmark_8.m_axi_b:DDR[3]
+                          Microbenchmark_8.m_axi_c:DDR[3])
 endif()
 if(${APFP_COMPUTE_UNITS} GREATER 8)
     message(FATAL_ERROR "More than 8 compute units is not supported.")
 endif()
 
 # Setup FPGA kernel targets
-add_vitis_kernel(MatrixMultiplication FILES ${APFP_KERNEL_FILES}
+add_vitis_kernel(Microbenchmark FILES ${APFP_KERNEL_FILES}
                  COMPUTE_UNITS ${APFP_COMPUTE_UNITS}
                  INCLUDE_DIRS include hlslib/include ${CMAKE_BINARY_DIR}
                  HLS_FLAGS "-DAP_INT_MAX_W=${APFP_MAX_BITS} -DAPFP_${APFP_SEMANTICS}_SEMANTICS"
@@ -106,18 +98,17 @@ add_vitis_kernel(MatrixMultiplication FILES ${APFP_KERNEL_FILES}
                  DEPENDS ${CMAKE_BINARY_DIR}/Config.h
                          include/ArithmeticOperations.h
                          include/DeviceTypes.h
-                         include/Karatsuba.h
-                         include/MatrixMultiplication.h
+                         include/Microbenchmark.h
                          include/PackedFloat.h
                          include/PipelinedAdd.h
                 PORT_MAPPING ${APFP_PORT_MAPPING})
-add_vitis_program(MatrixMultiplication ${APFP_PLATFORM}
+add_vitis_program(Microbenchmark ${APFP_PLATFORM}
                   PROFILING ${APFP_PROFILING}
                   DEBUGGING ${APFP_DEBUGGING}
                   SAVE_TEMPS ${APFP_SAVE_TEMPS})
 
 # Internal library 
-add_library(apfp host/Random.cpp host/MatrixMultiplicationReference.cpp)
+add_library(apfp host/Random.cpp host/MicrobenchmarkReference.cpp)
 target_link_libraries(apfp ${GMP_LIBRARIES} ${MPFR_LIBRARIES})
 
 # Library necessary to run in simulation mode

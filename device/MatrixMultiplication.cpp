@@ -5,6 +5,7 @@
 #include <hlslib/xilinx/Utility.h>  // hlslib::CeilDivide
 
 #include "ArithmeticOperations.h"
+#include "Karatsuba.h"
 
 // Annoyingly we have to specialize the innermost loop on whether multiple DRAM flits per number are required or not,
 // because HLS otherwise gets confused by pragmas applied to a loop of size 1 in the latter case.
@@ -330,42 +331,89 @@ WriteC_TilesN:
 
 ////////////////////////////////////////////////////////////////////////////////
 
-void Compute(hlslib::Stream<PackedFloat> &a_in, hlslib::Stream<PackedFloat> &b_in, hlslib::Stream<PackedFloat> &c_in,
-             hlslib::Stream<PackedFloat> &c_out, int const size_n, int const size_k, int const size_m) {
-    PackedFloat a_buffer;  // Just to make A symmetric to B and C
+void ComputeEntry(hlslib::Stream<PackedFloat> &a_in, hlslib::Stream<PackedFloat> &b_in,
+                  hlslib::Stream<MantissaFlat> &a_out, hlslib::Stream<MantissaFlat> &b_out,
+                  hlslib::Stream<ap_uint<8 * sizeof(Exponent)>> &ab_bypass, int const size_n, int const size_k,
+                  int const size_m) {
+    PackedFloat a_buffer;
     PackedFloat b_buffer[kTileSizeM];
-    PackedFloat c_buffer[kTileSizeN * kTileSizeM];
     const int tiles_n = hlslib::CeilDivide(size_n, kTileSizeN);
     const int tiles_m = hlslib::CeilDivide(size_m, kTileSizeM);
-Compute_TilesN:
+ComputeEntry_TilesN:
     for (int n0 = 0; n0 < tiles_n; ++n0) {
-    Compute_TilesM:
+    ComputeEntry_TilesM:
         for (int m0 = 0; m0 < tiles_m; ++m0) {
-        Compute_K:
+        ComputeEntry_K:
             for (int k = 0; k < size_k; ++k) {
-            Compute_N:
+            ComputeEntry_N:
                 for (int n1 = 0; n1 < ((n0 < tiles_n - 1) ? kTileSizeN : (size_n - n0 * kTileSizeN)); ++n1) {
-                Compute_M:
+                ComputeEntry_M:
                     for (int m1 = 0; m1 < kTileSizeM; ++m1) {
 #pragma HLS PIPELINE II = 1
 #pragma HLS LOOP_FLATTEN
                         const PackedFloat a_read = a_in.Pop();
                         const PackedFloat b_read = b_in.Pop();
-                        const PackedFloat c_read = c_in.Pop();
-                        const PackedFloat a = (m1 == 0) ? a_read : a_buffer;
-                        const PackedFloat b = (n1 == 0) ? b_read : b_buffer[m1];
-                        const PackedFloat c = (k == 0) ? c_read : c_buffer[n1 * kTileSizeM + m1];
+                        PackedFloat a = (m1 == 0) ? a_read : a_buffer;
+                        PackedFloat b = (n1 == 0) ? b_read : b_buffer[m1];
                         a_buffer = a;
                         b_buffer[m1] = b;
                         // Ignore contributions from out-of-bound indices
                         const bool in_bounds = (n0 * kTileSizeN + n1 < size_n) && (m0 * kTileSizeM + m1 < size_m);
-                        // Meat of the computation
-                        const auto res = MultiplyAccumulate(in_bounds ? a : PackedFloat::Zero(),
-                                                            in_bounds ? b : PackedFloat::Zero(), c);
-                        // Write back to buffer
+                        if (!in_bounds) {
+                            a.SetZero();
+                            b.SetZero();
+                        }
+                        // Multiplication prologue
+                        ap_uint<8 * sizeof(Exponent)> sign_exponent;
+                        reinterpret_cast<PackedSignExponent *>(&sign_exponent)->sign = a.GetSignBit() != b.GetSignBit();
+                        reinterpret_cast<PackedSignExponent *>(&sign_exponent)->exponent =
+                            a.GetExponent() + b.GetExponent();
+                        ab_bypass.Push(sign_exponent);
+                        a_out.Push(a.GetMantissa());
+                        b_out.Push(b.GetMantissa());
+                    }
+                }
+            }
+        }
+    }
+}
+
+void ComputeExit(hlslib::Stream<ap_uint<kMantissaBits + 1>> &ab_mantissa_in,
+                 hlslib::Stream<ap_uint<8 * sizeof(Exponent)>> &ab_bypass, hlslib::Stream<PackedFloat> &c_in,
+                 hlslib::Stream<PackedFloat> &c_out, int const size_n, int const size_k, int const size_m) {
+    PackedFloat c_buffer[kTileSizeN * kTileSizeM];
+    const int tiles_n = hlslib::CeilDivide(size_n, kTileSizeN);
+    const int tiles_m = hlslib::CeilDivide(size_m, kTileSizeM);
+ComputeExit_TilesN:
+    for (int n0 = 0; n0 < tiles_n; ++n0) {
+    ComputeExit_TilesM:
+        for (int m0 = 0; m0 < tiles_m; ++m0) {
+        ComputeExit_K:
+            for (int k = 0; k < size_k; ++k) {
+            ComputeExit_N:
+                for (int n1 = 0; n1 < ((n0 < tiles_n - 1) ? kTileSizeN : (size_n - n0 * kTileSizeN)); ++n1) {
+                ComputeExit_M:
+                    for (int m1 = 0; m1 < kTileSizeM; ++m1) {
+#pragma HLS PIPELINE II = 1
+#pragma HLS LOOP_FLATTEN
+                        const auto _ab_mantissa = ab_mantissa_in.Pop();
+                        const auto ab_sign_exponent = ab_bypass.Pop();
+                        // Matrix multiplication epilogue
+                        PackedFloat ab;
+                        ab.SetSignExponent(ab_sign_exponent);
+                        const bool should_be_shifted = !IsMostSignificantBitSet(_ab_mantissa);
+                        const ap_uint<kMantissaBits + 1> m_mantissa =
+                            should_be_shifted ? _ab_mantissa : (_ab_mantissa >> 1);
+                        ab.SetMantissa(m_mantissa);
+                        // If the most significant bit was 0, subtract 1 due to the shift.
+                        ab.SetExponent(ab.GetExponent() - (should_be_shifted ? 1 : 0));
+                        // Addition
+                        const PackedFloat c_read = c_in.Pop();
+                        const PackedFloat c = (k == 0) ? c_read : c_buffer[n1 * kTileSizeM + m1];
+                        const PackedFloat res = Add(ab, c);
+                        c_out.Push(res);
                         c_buffer[n1 * kTileSizeM + m1] = res;
 #pragma HLS DEPENDENCE variable = c_buffer false
-                        c_out.Push(res);
                     }
                 }
             }
@@ -375,8 +423,24 @@ Compute_TilesN:
 
 ////////////////////////////////////////////////////////////////////////////////
 
+void FreeRunningMultiplication(hlslib::Stream<MantissaFlat> &a_to_kernel, hlslib::Stream<MantissaFlat> &b_to_kernel,
+                               hlslib::Stream<ap_uint<kMantissaBits + 1>> &ab_from_kernel) {
+#pragma HLS INTERFACE axis port = a_to_kernel
+#pragma HLS INTERFACE axis port = b_to_kernel
+#pragma HLS INTERFACE axis port = ab_from_kernel
+#pragma HLS interface ap_ctrl_none port = return
+#pragma HLS PIPELINE II = 1
+    const ap_uint<kMantissaBits + 1> ab_mantissa =
+        Karatsuba(a_to_kernel.Pop(), b_to_kernel.Pop()) >> (kMantissaBits - 1);
+    ab_from_kernel.Push(ab_mantissa);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
 void MatrixMultiplication(DramLine const *const a, DramLine const *const b, DramLine const *const c_read,
-                          DramLine *const c_write, const int size_n, const int size_k, int const size_m) {
+                          DramLine *const c_write, const int size_n, const int size_k, int const size_m,
+                          hlslib::Stream<MantissaFlat> &a_to_kernel, hlslib::Stream<MantissaFlat> &b_to_kernel,
+                          hlslib::Stream<ap_uint<kMantissaBits + 1>> &ab_from_kernel) {
 #pragma HLS INTERFACE m_axi offset = slave port = a bundle = a
 #pragma HLS INTERFACE m_axi offset = slave port = b bundle = b
 // Even though they actually point to the same memory location, we use two separate interfaces for reading and writing
@@ -390,6 +454,9 @@ void MatrixMultiplication(DramLine const *const a, DramLine const *const b, Dram
 #pragma HLS INTERFACE s_axilite port = size_n
 #pragma HLS INTERFACE s_axilite port = size_k
 #pragma HLS INTERFACE s_axilite port = size_m
+#pragma HLS INTERFACE axis port = a_to_kernel
+#pragma HLS INTERFACE axis port = b_to_kernel
+#pragma HLS INTERFACE axis port = ab_from_kernel
 #pragma HLS STABLE variable = a
 #pragma HLS STABLE variable = b
 #pragma HLS STABLE variable = c_read
@@ -399,21 +466,26 @@ void MatrixMultiplication(DramLine const *const a, DramLine const *const b, Dram
 #pragma HLS STABLE variable = size_m
 #pragma HLS DATAFLOW
     hlslib::Stream<PackedFloat, 16> a_to_feeder("a_to_feeder");
-    hlslib::Stream<PackedFloat, 16> a_to_kernel("a_to_kernel");
+    hlslib::Stream<PackedFloat, 16> a_to_entry("a_to_entry");
     hlslib::Stream<PackedFloat, 16> b_to_feeder("b_to_feeder");
-    hlslib::Stream<PackedFloat, 16> b_to_kernel("b_to_kernel");
+    hlslib::Stream<PackedFloat, 16> b_to_entry("b_to_entry");
+    hlslib::Stream<ap_uint<8 * sizeof(Exponent)>, 1024> ab_bypass("ab_bypass");
     hlslib::Stream<PackedFloat, 16> c_to_feeder("c_to_feeder");
     hlslib::Stream<PackedFloat, 16> c_to_kernel("c_to_kernel");
     hlslib::Stream<PackedFloat, 16> c_from_kernel("c_from_kernel");
+    hlslib::Stream<PackedFloat, 16> c_from_exit("c_from_exit");
     hlslib::Stream<PackedFloat, 16> c_from_drainer("c_from_drainer");
     HLSLIB_DATAFLOW_INIT();
     HLSLIB_DATAFLOW_FUNCTION(ReadA, a, a_to_feeder, size_n, size_k, size_m);
-    HLSLIB_DATAFLOW_FUNCTION(FeedA, a_to_feeder, a_to_kernel, size_n, size_k, size_m);
+    HLSLIB_DATAFLOW_FUNCTION(FeedA, a_to_feeder, a_to_entry, size_n, size_k, size_m);
     HLSLIB_DATAFLOW_FUNCTION(ReadB, b, b_to_feeder, size_n, size_k, size_m);
-    HLSLIB_DATAFLOW_FUNCTION(FeedB, b_to_feeder, b_to_kernel, size_n, size_k, size_m);
+    HLSLIB_DATAFLOW_FUNCTION(FeedB, b_to_feeder, b_to_entry, size_n, size_k, size_m);
     HLSLIB_DATAFLOW_FUNCTION(ReadC, c_read, c_to_feeder, size_n, size_m);
     HLSLIB_DATAFLOW_FUNCTION(FeedC, c_to_feeder, c_to_kernel, size_n, size_k, size_m);
-    HLSLIB_DATAFLOW_FUNCTION(Compute, a_to_kernel, b_to_kernel, c_to_kernel, c_from_kernel, size_n, size_k, size_m);
+    HLSLIB_DATAFLOW_FUNCTION(ComputeEntry, a_to_entry, b_to_entry, a_to_kernel, b_to_kernel, ab_bypass, size_n, size_k,
+                             size_m);
+    HLSLIB_DATAFLOW_FUNCTION(ComputeExit, ab_from_kernel, ab_bypass, c_to_kernel, c_from_kernel, size_n, size_k,
+                             size_m);
     HLSLIB_DATAFLOW_FUNCTION(DrainC, c_from_kernel, c_from_drainer, size_n, size_k, size_m);
     HLSLIB_DATAFLOW_FUNCTION(WriteC, c_from_drainer, c_write, size_n, size_m);
     HLSLIB_DATAFLOW_FINALIZE();

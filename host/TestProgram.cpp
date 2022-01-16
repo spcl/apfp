@@ -1,4 +1,5 @@
 #include <hlslib/xilinx/OpenCL.h>
+#include <hlslib/xilinx/Stream.h>
 #include <hlslib/xilinx/Utility.h>
 
 #include <cstdlib>  // putenv
@@ -22,6 +23,13 @@ struct MpfrWrapper {
 };
 
 #ifdef HLSLIB_SIMULATE_OPENCL
+void RunFreeRunningKernel(hlslib::Stream<MantissaFlat> &a_mantissa_in, hlslib::Stream<MantissaFlat> &b_mantissa_in,
+                          hlslib::Stream<ap_uint<kMantissaBits + 1>> &ab_mantissa_out) {
+    while (true) {
+        FreeRunningMultiplication(a_mantissa_in, b_mantissa_in, ab_mantissa_out);
+    }
+}
+
 bool RunTestSimulation(int size_n, int size_k, int size_m, bool verify) {
     const std::string kernel_path("");
 #else
@@ -111,9 +119,14 @@ bool RunTest(std::string const &kernel_path, int size_n, int size_k, int size_m,
     // In simulation mode, this will call the function "MatrixMultiplication" and run it in software.
     // Otherwise, the provided path to a kernel binary will be loaded and executed.
     std::vector<hlslib::ocl::Kernel> kernels;
+    hlslib::Stream<MantissaFlat> a_to_kernel[kComputeUnits];
+    hlslib::Stream<MantissaFlat> b_to_kernel[kComputeUnits];
+    hlslib::Stream<ap_uint<kMantissaBits + 1>> ab_from_kernel[kComputeUnits];
     for (int i = 0; i < kComputeUnits; ++i) {
-        kernels.emplace_back(program.MakeKernel(MatrixMultiplication, "MatrixMultiplication", a_device[i], b_device[i],
-                                                c_device[i], c_device[i], n_partition_size[i], size_k, size_m));
+        kernels.emplace_back(program.MakeKernel(
+            MatrixMultiplication, "MatrixMultiplication", a_device[i], b_device[i], c_device[i], c_device[i],
+            n_partition_size[i], size_k, size_m, hlslib::ocl::SimulationOnly(a_to_kernel[i]),
+            hlslib::ocl::SimulationOnly(b_to_kernel[i]), hlslib::ocl::SimulationOnly(ab_from_kernel[i])));
     }
 
     const float expected_runtime = expected_cycles / 0.3e9;
@@ -126,6 +139,14 @@ bool RunTest(std::string const &kernel_path, int size_n, int size_k, int size_m,
               << bandwidth << " GB/s.\n";
 
     std::cout << "Executing kernel...\n";
+#ifdef HLSLIB_SIMULATE_OPENCL
+    for (int i = 0; i < kComputeUnits; ++i) {
+        std::thread free_running(RunFreeRunningKernel, std::ref(a_to_kernel[i]), std::ref(b_to_kernel[i]),
+                                 std::ref(ab_from_kernel[i]));
+        // Will be killed when the program exits
+        free_running.detach();
+    }
+#endif
     std::vector<hlslib::ocl::Event> events;
     auto start = std::chrono::high_resolution_clock::now();
     for (int i = 0; i < kComputeUnits; ++i) {

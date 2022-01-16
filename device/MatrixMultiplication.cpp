@@ -344,7 +344,7 @@ Compute_TilesN:
         Compute_K:
             for (int k = 0; k < size_k; ++k) {
             Compute_N:
-            for (int n1 = 0; n1 < ((n0 < tiles_n - 1) ? kTileSizeN : (size_n - n0 * kTileSizeN)); ++n1) {
+                for (int n1 = 0; n1 < ((n0 < tiles_n - 1) ? kTileSizeN : (size_n - n0 * kTileSizeN)); ++n1) {
                 Compute_M:
                     for (int m1 = 0; m1 < kTileSizeM; ++m1) {
 #pragma HLS PIPELINE II = 1
@@ -364,6 +364,7 @@ Compute_TilesN:
                                                             in_bounds ? b : PackedFloat::Zero(), c);
                         // Write back to buffer
                         c_buffer[n1 * kTileSizeM + m1] = res;
+#pragma HLS DEPENDENCE variable = c_buffer false
                         c_out.Push(res);
                     }
                 }

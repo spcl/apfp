@@ -98,12 +98,13 @@ bool RunTest(std::string const &kernel_path, int size_n, int size_k, int size_m,
     std::vector<hlslib::ocl::Buffer<DramLine, hlslib::ocl::Access::read>> b_device;
     std::vector<hlslib::ocl::Buffer<DramLine, hlslib::ocl::Access::readWrite>> c_device;
     for (int i = 0; i < kComputeUnits; ++i) {
+        const auto bank = i % 4;
         a_device.emplace_back(
-            context, hlslib::ocl::StorageType::DDR, kDramMapping[i],
+            context, hlslib::ocl::StorageType::DDR, kDramMapping[bank],
             kLinesPerNumber * (hlslib::CeilDivide(n_partition_size[i], kTileSizeN) * kTileSizeN) * size_k);
-        b_device.emplace_back(context, hlslib::ocl::StorageType::DDR, kDramMapping[i],
+        b_device.emplace_back(context, hlslib::ocl::StorageType::DDR, kDramMapping[bank],
                               kLinesPerNumber * size_k * (hlslib::CeilDivide(size_m, kTileSizeM) * kTileSizeM));
-        c_device.emplace_back(context, hlslib::ocl::StorageType::DDR, kDramMapping[i],
+        c_device.emplace_back(context, hlslib::ocl::StorageType::DDR, kDramMapping[bank],
                               kLinesPerNumber * (hlslib::CeilDivide(n_partition_size[i], kTileSizeN) * kTileSizeN) *
                                   (hlslib::CeilDivide(size_m, kTileSizeM) * kTileSizeM));
         // Copy data to the accelerator cast to 512-bit DRAM lines

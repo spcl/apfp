@@ -9,12 +9,12 @@
 // Annoyingly we have to specialize the innermost loop on whether multiple DRAM flits per number are required or not,
 // because HLS otherwise gets confused by pragmas applied to a loop of size 1 in the latter case.
 template <int lines_per_number>
-void ReadAInner(DramLine const *const mem, hlslib::Stream<PackedFloat> &a_to_feeder, const int size_k, const int n0,
-                const int k) {
+void ReadAInner(DramLine const *const mem, hlslib::Stream<PackedFloat> &a_to_feeder, const int size_n,
+                const int tiles_n, const int size_k, const int n0, const int k) {
 #pragma HLS INLINE
     DramLine num[kLinesPerNumber];
 ReadA_N:
-    for (int n1 = 0; n1 < kTileSizeN; ++n1) {
+    for (int n1 = 0; n1 < ((n0 < tiles_n - 1) ? kTileSizeN : (size_n - n0 * kTileSizeN)); ++n1) {
     ReadA_Flits:
         for (int i = 0; i < kLinesPerNumber; ++i) {
 #pragma HLS PIPELINE II = 1
@@ -28,11 +28,11 @@ ReadA_N:
 }
 
 template <>
-void ReadAInner<1>(DramLine const *const mem, hlslib::Stream<PackedFloat> &a_to_feeder, const int size_k, const int n0,
-                   const int k) {
+void ReadAInner<1>(DramLine const *const mem, hlslib::Stream<PackedFloat> &a_to_feeder, const int size_n,
+                   const int tiles_n, const int size_k, const int n0, const int k) {
 #pragma HLS INLINE
 ReadA_N:
-    for (int n1 = 0; n1 < kTileSizeN; ++n1) {
+    for (int n1 = 0; n1 < ((n0 < tiles_n - 1) ? kTileSizeN : (size_n - n0 * kTileSizeN)); ++n1) {
 #pragma HLS PIPELINE II = 1
 #pragma HLS LOOP_FLATTEN
         DramLine num[1];
@@ -51,7 +51,7 @@ ReadA_TilesN:
         for (int m0 = 0; m0 < tiles_m; ++m0) {
         ReadA_K:
             for (int k = 0; k < size_k; ++k) {
-                ReadAInner<kLinesPerNumber>(mem, a_to_feeder, size_k, n0, k);
+                ReadAInner<kLinesPerNumber>(mem, a_to_feeder, size_n, tiles_n, size_k, n0, k);
             }
         }
     }
@@ -71,7 +71,7 @@ FeedA_TilesN:
         FeedA_K:
             for (int k = 0; k < size_k; ++k) {
             FeedA_N:
-                for (int n1 = 0; n1 < kTileSizeN; ++n1) {
+                for (int n1 = 0; n1 < ((n0 < tiles_n - 1) ? kTileSizeN : (size_n - n0 * kTileSizeN)); ++n1) {
                 FeedA_M:
                     for (int m1 = 0; m1 < kTileSizeM; ++m1) {
 #pragma HLS PIPELINE II = 1
@@ -150,7 +150,7 @@ FeedB_TilesN:
         FeedB_K:
             for (int k = 0; k < size_k; ++k) {
             FeedB_N:
-                for (int n1 = 0; n1 < kTileSizeN; ++n1) {
+                for (int n1 = 0; n1 < ((n0 < tiles_n - 1) ? kTileSizeN : (size_n - n0 * kTileSizeN)); ++n1) {
                 FeedB_M:
                     for (int m1 = 0; m1 < kTileSizeM; ++m1) {
 #pragma HLS PIPELINE II = 1
@@ -209,7 +209,7 @@ ReadC_TilesN:
     ReadC_TilesM:
         for (int m0 = 0; m0 < tiles_m; ++m0) {
         ReadC_N:
-            for (int n1 = 0; n1 < kTileSizeN; ++n1) {
+            for (int n1 = 0; n1 < ((n0 < tiles_n - 1) ? kTileSizeN : (size_n - n0 * kTileSizeN)); ++n1) {
                 ReadCInner<kLinesPerNumber>(mem, c_to_feeder, size_m, n0, m0, n1);
             }
         }
@@ -228,7 +228,7 @@ FeedC_TilesN:
         FeedC_K:
             for (int k = 0; k < size_k; ++k) {
             FeedC_N:
-                for (int n1 = 0; n1 < kTileSizeN; ++n1) {
+                for (int n1 = 0; n1 < ((n0 < tiles_n - 1) ? kTileSizeN : (size_n - n0 * kTileSizeN)); ++n1) {
                 FeedC_M:
                     for (int m1 = 0; m1 < kTileSizeM; ++m1) {
 #pragma HLS PIPELINE II = 1
@@ -257,7 +257,7 @@ DrainC_TilesN:
         DrainC_K:
             for (int k = 0; k < size_k; ++k) {
             DrainC_N:
-                for (int n1 = 0; n1 < kTileSizeN; ++n1) {
+                for (int n1 = 0; n1 < ((n0 < tiles_n - 1) ? kTileSizeN : (size_n - n0 * kTileSizeN)); ++n1) {
                 DrainC_M:
                     for (int m1 = 0; m1 < kTileSizeM; ++m1) {
 #pragma HLS PIPELINE II = 1
@@ -321,7 +321,7 @@ WriteC_TilesN:
     WriteC_TilesM:
         for (int m0 = 0; m0 < tiles_m; ++m0) {
         WriteC_N:
-            for (int n1 = 0; n1 < kTileSizeN; ++n1) {
+            for (int n1 = 0; n1 < ((n0 < tiles_n - 1) ? kTileSizeN : (size_n - n0 * kTileSizeN)); ++n1) {
                 WriteCInner<kLinesPerNumber>(from_kernel, mem, size_n, size_m, n0, m0, n1);
             }
         }
@@ -344,7 +344,7 @@ Compute_TilesN:
         Compute_K:
             for (int k = 0; k < size_k; ++k) {
             Compute_N:
-                for (int n1 = 0; n1 < kTileSizeN; ++n1) {
+            for (int n1 = 0; n1 < ((n0 < tiles_n - 1) ? kTileSizeN : (size_n - n0 * kTileSizeN)); ++n1) {
                 Compute_M:
                     for (int m1 = 0; m1 < kTileSizeM; ++m1) {
 #pragma HLS PIPELINE II = 1

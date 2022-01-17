@@ -102,6 +102,7 @@ bool RunTest(std::string const &kernel_path, int size, bool verify) {
     std::vector<hlslib::ocl::Buffer<DramLine, hlslib::ocl::Access::write>> res_device;
     for (int i = 0; i < kComputeUnits; ++i) {
         const auto bank = i % 4;
+#ifndef APFP_FAKE_MEMORY
         a_device.emplace_back(context, hlslib::ocl::StorageType::DDR, kDramMapping[bank],
                               kLinesPerNumber * partition_size[i]);
         b_device.emplace_back(context, hlslib::ocl::StorageType::DDR, kDramMapping[bank],
@@ -111,7 +112,6 @@ bool RunTest(std::string const &kernel_path, int size, bool verify) {
         res_device.emplace_back(context, hlslib::ocl::StorageType::DDR, kDramMapping[bank],
                                 kLinesPerNumber * partition_size[i]);
         // Copy data to the accelerator cast to 512-bit DRAM lines
-#ifndef APFP_FAKE_MEMORY
         a_device[i].CopyFromHost(0, kLinesPerNumber * partition_size[i],
                                  reinterpret_cast<DramLine const *>(&a_host[i_begin[i]]));
         b_device[i].CopyFromHost(0, kLinesPerNumber * partition_size[i],
@@ -119,6 +119,10 @@ bool RunTest(std::string const &kernel_path, int size, bool verify) {
         c_device[i].CopyFromHost(0, kLinesPerNumber * partition_size[i],
                                  reinterpret_cast<DramLine const *>(&c_host[i_begin[i]]));
 #else
+        a_device.emplace_back(context, hlslib::ocl::StorageType::DDR, kDramMapping[bank], kLinesPerNumber);
+        b_device.emplace_back(context, hlslib::ocl::StorageType::DDR, kDramMapping[bank], kLinesPerNumber);
+        c_device.emplace_back(context, hlslib::ocl::StorageType::DDR, kDramMapping[bank], kLinesPerNumber);
+        res_device.emplace_back(context, hlslib::ocl::StorageType::DDR, kDramMapping[bank], kLinesPerNumber);
         a_device[i].CopyFromHost(0, kLinesPerNumber, reinterpret_cast<DramLine const *>(&a_host[0]));
         b_device[i].CopyFromHost(0, kLinesPerNumber, reinterpret_cast<DramLine const *>(&b_host[0]));
         c_device[i].CopyFromHost(0, kLinesPerNumber, reinterpret_cast<DramLine const *>(&c_host[0]));
@@ -130,8 +134,9 @@ bool RunTest(std::string const &kernel_path, int size, bool verify) {
     // Otherwise, the provided path to a kernel binary will be loaded and executed.
     std::vector<hlslib::ocl::Kernel> kernels;
     for (int i = 0; i < kComputeUnits; ++i) {
-        kernels.emplace_back(program.MakeKernel(Microbenchmark, "Microbenchmark", a_device[i], b_device[i], c_device[i],
-                                                res_device[i], partition_size[i]));
+        kernels.emplace_back(
+            program.MakeKernel(Microbenchmark, "Microbenchmark:{Microbenchmark_" + std::to_string(i + 1) + "}",
+                               a_device[i], b_device[i], c_device[i], res_device[i], partition_size[i]));
     }
 
     const float expected_runtime = expected_cycles / 0.3e9;
@@ -171,7 +176,7 @@ bool RunTest(std::string const &kernel_path, int size, bool verify) {
         res_device[i].CopyToHost(0, kLinesPerNumber, reinterpret_cast<DramLine *>(&result[i]));
     }
 #endif
-    std::cout << "Done.\n";
+    std::cout << " Done.\n";
 
     // Run reference implementation. Because of GMP's "clever" way of wrapping their struct in an array of size 1,
     // allocating and passing arrays of GMP numbers is a mess

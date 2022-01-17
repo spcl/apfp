@@ -90,7 +90,31 @@ if(${APFP_COMPUTE_UNITS} GREATER 7)
                           Microbenchmark_8.m_axi_c:DDR[3])
 endif()
 if(${APFP_COMPUTE_UNITS} GREATER 8)
-    message(FATAL_ERROR "More than 8 compute units is not supported.")
+    set(APFP_PORT_MAPPING ${APFP_PORT_MAPPING}
+                          Microbenchmark_9.m_axi_a:DDR[1]
+                          Microbenchmark_9.m_axi_b:DDR[1]
+                          Microbenchmark_9.m_axi_c:DDR[1])
+endif()
+if(${APFP_COMPUTE_UNITS} GREATER 9)
+    set(APFP_PORT_MAPPING ${APFP_PORT_MAPPING}
+                          Microbenchmark_10.m_axi_a:DDR[0]
+                          Microbenchmark_10.m_axi_b:DDR[0]
+                          Microbenchmark_10.m_axi_c:DDR[0])
+endif()
+if(${APFP_COMPUTE_UNITS} GREATER 10)
+    set(APFP_PORT_MAPPING ${APFP_PORT_MAPPING}
+                          Microbenchmark_11.m_axi_a:DDR[2]
+                          Microbenchmark_11.m_axi_b:DDR[2]
+                          Microbenchmark_11.m_axi_c:DDR[2])
+endif()
+if(${APFP_COMPUTE_UNITS} GREATER 11)
+    set(APFP_PORT_MAPPING ${APFP_PORT_MAPPING}
+                          Microbenchmark_12.m_axi_a:DDR[3]
+                          Microbenchmark_12.m_axi_b:DDR[3]
+                          Microbenchmark_12.m_axi_c:DDR[3])
+endif()
+if(${APFP_COMPUTE_UNITS} GREATER 12)
+    message(FATAL_ERROR "More than 12 compute units is not supported.")
 endif()
 
 # Setup FPGA kernel targets

@@ -33,10 +33,23 @@ bool RunTest(std::string const &kernel_path, int size, bool verify) {
     auto program = context.MakeProgram(kernel_path);
     std::cout << " Done.\n";
 
+    // Compute partitions
+    int i_begin[kComputeUnits];
+    int i_end[kComputeUnits];
+    int partition_size[kComputeUnits];
+    unsigned long expected_cycles = 0;
+    for (int i = 0; i < kComputeUnits; ++i) {
+        i_begin[i] = (i * size) / kComputeUnits;
+        i_end[i] = ((i + 1) * size) / kComputeUnits;
+        partition_size[i] = i_end[i] - i_begin[i];
+        expected_cycles = std::max(expected_cycles, (unsigned long)(partition_size[i]));
+    }
+
     // Initialize some random data
     std::cout << "Initializing input data..." << std::flush;
     std::vector<MpfrWrapper> a_mpfr, b_mpfr, c_mpfr;
     RandomNumberGenerator rng;
+#ifndef APFP_FAKE_MEMORY
     for (int i = 0; i < size; ++i) {
         a_mpfr.emplace_back();
         rng.GenerateMpfr(a_mpfr.back());
@@ -49,6 +62,14 @@ bool RunTest(std::string const &kernel_path, int size, bool verify) {
         c_mpfr.emplace_back();
         rng.GenerateMpfr(c_mpfr.back());
     }
+#else
+    a_mpfr.emplace_back();
+    b_mpfr.emplace_back();
+    c_mpfr.emplace_back();
+    rng.GenerateMpfr(a_mpfr[0]);
+    rng.GenerateMpfr(b_mpfr[0]);
+    rng.GenerateMpfr(c_mpfr[0]);
+#endif
 
     // Convert to PackedFloat format
     std::vector<PackedFloat> a_host, b_host, c_host;
@@ -62,18 +83,6 @@ bool RunTest(std::string const &kernel_path, int size, bool verify) {
         c_host.emplace_back(x);
     }
     std::cout << " Done.\n";
-
-    // Compute partitions
-    int i_begin[kComputeUnits];
-    int i_end[kComputeUnits];
-    int partition_size[kComputeUnits];
-    unsigned long expected_cycles = 0;
-    for (int i = 0; i < kComputeUnits; ++i) {
-        i_begin[i] = (i * size) / kComputeUnits;
-        i_end[i] = ((i + 1) * size) / kComputeUnits;
-        partition_size[i] = i_end[i] - i_begin[i];
-        expected_cycles = std::max(expected_cycles, (unsigned long)(partition_size[i]));
-    }
 
     // Allocate device memory, padding each buffer to the tile size
     std::cout << "Copying data to the device..." << std::flush;
@@ -90,12 +99,18 @@ bool RunTest(std::string const &kernel_path, int size, bool verify) {
         c_device.emplace_back(context, hlslib::ocl::StorageType::DDR, kDramMapping[bank],
                               kLinesPerNumber * partition_size[i]);
         // Copy data to the accelerator cast to 512-bit DRAM lines
+#ifndef APFP_FAKE_MEMORY
         a_device[i].CopyFromHost(0, kLinesPerNumber * partition_size[i],
                                  reinterpret_cast<DramLine const *>(&a_host[i_begin[i]]));
         b_device[i].CopyFromHost(0, kLinesPerNumber * partition_size[i],
                                  reinterpret_cast<DramLine const *>(&b_host[i_begin[i]]));
         c_device[i].CopyFromHost(0, kLinesPerNumber * partition_size[i],
                                  reinterpret_cast<DramLine const *>(&c_host[i_begin[i]]));
+#else
+        a_device[i].CopyFromHost(0, kLinesPerNumber, reinterpret_cast<DramLine const *>(&a_host[0]));
+        b_device[i].CopyFromHost(0, kLinesPerNumber, reinterpret_cast<DramLine const *>(&b_host[0]));
+        c_device[i].CopyFromHost(0, kLinesPerNumber, reinterpret_cast<DramLine const *>(&c_host[0]));
+#endif
     }
     std::cout << " Done.\n";
 
@@ -132,11 +147,18 @@ bool RunTest(std::string const &kernel_path, int size, bool verify) {
 
     // Copy back result
     std::cout << "Copying back result..." << std::flush;
+#ifndef APFP_FAKE_MEMORYH
     std::vector<PackedFloat> result(size);
     for (int i = 0; i < kComputeUnits; ++i) {
         c_device[i].CopyToHost(0, kLinesPerNumber * partition_size[i],
                                reinterpret_cast<DramLine *>(&result[i_begin[i]]));
     }
+#else
+    std::vector<PackedFloat> result(kComputeUnits);
+    for (int i = 0; i < kComputeUnits; ++i) {
+        c_device[i].CopyToHost(0, kLinesPerNumber, reinterpret_cast<DramLine *>(&result[i]));
+    }
+#endif
     std::cout << "Done.\n";
 
     // Run reference implementation. Because of GMP's "clever" way of wrapping their struct in an array of size 1,
@@ -160,16 +182,19 @@ bool RunTest(std::string const &kernel_path, int size, bool verify) {
         }
     }
 #else
-    const PackedFloat res = result[0];
-    const PackedFloat ref(c_mpfr[0]);
-    if (res != ref) {
-        std::cerr << "Verification failed:\n\t" << res << "\n\t" << ref << "\n";
-        return false;
+    for (int i = 0; i < kComputeUnits; ++i) {
+        const PackedFloat res = result[i];
+        const PackedFloat ref(c_mpfr[i0]);
+        if (res != ref) {
+            std::cerr << "Verification failed for compute unit " << i << ":\n\t" << res << "\n\t" << ref << "\n";
+            return false;
+        }
     }
 #endif
     std::cout << "Results successfully verified against MPFR.\n";
 
     // Clean up
+#ifndef APFP_FAKE_MEMORY
     for (int i = 0; i < size; ++i) {
         mpfr_clear(a_mpfr[i]);
     }
@@ -179,6 +204,11 @@ bool RunTest(std::string const &kernel_path, int size, bool verify) {
     for (int i = 0; i < size; ++i) {
         mpfr_clear(c_mpfr[i]);
     }
+#else
+    mpfr_clear(a_mpfr[0]);
+    mpfr_clear(b_mpfr[0]);
+    mpfr_clear(c_mpfr[0]);
+#endif
 
     return true;
 }

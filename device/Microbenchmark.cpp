@@ -109,35 +109,49 @@ void ReadB(DramLine const *const mem, hlslib::Stream<PackedFloat> &to_kernel, co
     Read<kLinesPerNumber>(mem, to_kernel, size);
 }
 
-void Compute(hlslib::Stream<PackedFloat> &a_in, hlslib::Stream<PackedFloat> &b_in, hlslib::Stream<PackedFloat> &c_out,
-             const int size) {
+void ReadC(DramLine const *const mem, hlslib::Stream<PackedFloat> &to_kernel, const int size) {
+    Read<kLinesPerNumber>(mem, to_kernel, size);
+}
+
+void Compute(hlslib::Stream<PackedFloat> &a_in, hlslib::Stream<PackedFloat> &b_in, hlslib::Stream<PackedFloat> &c_in,
+             hlslib::Stream<PackedFloat> &res_out, const int size) {
 Compute:
     for (int i = 0; i < size; ++i) {
 #pragma HLS PIPELINE II = 1
-        c_out.Push(Multiply(a_in.Pop(), b_in.Pop()));
+        const auto a = a_in.Pop();
+        const auto b = b_in.Pop();
+        const auto c = c_in.Pop();
+        const auto res = MultiplyAccumulate(a, b, c);
+        res_out.Push(res);
     }
 }
 
-void Microbenchmark(DramLine const *const a, DramLine const *const b, DramLine *const c, const int size) {
+void Microbenchmark(DramLine const *const a, DramLine const *const b, DramLine const *const c, DramLine *const res,
+                    const int size) {
 #pragma HLS INTERFACE m_axi offset = slave port = a bundle = a
 #pragma HLS INTERFACE m_axi offset = slave port = b bundle = b
 #pragma HLS INTERFACE m_axi offset = slave port = c bundle = c
+#pragma HLS INTERFACE m_axi offset = slave port = res_out bundle = res_out
 #pragma HLS INTERFACE s_axilite port = a
 #pragma HLS INTERFACE s_axilite port = b
 #pragma HLS INTERFACE s_axilite port = c
+#pragma HLS INTERFACE s_axilite port = res
 #pragma HLS INTERFACE s_axilite port = size
 #pragma HLS STABLE variable = a
 #pragma HLS STABLE variable = b
 #pragma HLS STABLE variable = c
+#pragma HLS STABLE variable = res
 #pragma HLS STABLE variable = size
 #pragma HLS DATAFLOW
     hlslib::Stream<PackedFloat, 16> a_to_kernel("a_to_kernel");
     hlslib::Stream<PackedFloat, 16> b_to_kernel("b_to_kernel");
-    hlslib::Stream<PackedFloat, 16> c_from_kernel("c_from_kernel");
+    hlslib::Stream<PackedFloat, 16> c_to_kernel("b_to_kernel");
+    hlslib::Stream<PackedFloat, 16> res_from_kernel("res_from_kernel");
     HLSLIB_DATAFLOW_INIT();
     HLSLIB_DATAFLOW_FUNCTION(ReadA, a, a_to_kernel, size);
     HLSLIB_DATAFLOW_FUNCTION(ReadB, b, b_to_kernel, size);
-    HLSLIB_DATAFLOW_FUNCTION(Compute, a_to_kernel, b_to_kernel, c_from_kernel, size);
-    HLSLIB_DATAFLOW_FUNCTION(Write<kLinesPerNumber>, c_from_kernel, c, size);
+    HLSLIB_DATAFLOW_FUNCTION(ReadC, c, c_to_kernel, size);
+    HLSLIB_DATAFLOW_FUNCTION(Compute, a_to_kernel, b_to_kernel, c_to_kernel, res_from_kernel, size);
+    HLSLIB_DATAFLOW_FUNCTION(Write<kLinesPerNumber>, res_from_kernel, res, size);
     HLSLIB_DATAFLOW_FINALIZE();
 }

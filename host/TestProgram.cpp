@@ -184,7 +184,7 @@ bool RunTest(std::string const &kernel_path, int size, bool verify) {
 #else
     for (int i = 0; i < kComputeUnits; ++i) {
         const PackedFloat res = result[i];
-        const PackedFloat ref(c_mpfr[i0]);
+        const PackedFloat ref(c_mpfr[i]);
         if (res != ref) {
             std::cerr << "Verification failed for compute unit " << i << ":\n\t" << res << "\n\t" << ref << "\n";
             return false;

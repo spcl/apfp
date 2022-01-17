@@ -68,29 +68,31 @@ Write:
 
 template <int lines_per_number>
 void Read(DramLine const *const mem, hlslib::Stream<PackedFloat> &to_kernel, const int size) {
+#pragma HLS INLINE
     DramLine flits[kLinesPerNumber];
-#pragma HLS ARRAY_PARTITION variable = num complete
+#pragma HLS ARRAY_PARTITION variable = flits complete
+ReadFlits:
     for (int j = 0; j < kLinesPerNumber; ++j) {
 #pragma HLS PIPELINE II = 1
         flits[j] = mem[j];
     }
     const PackedFloat num(flits);
-Read:
+ReadFake:
     for (int i = 0; i < size; ++i) {
 #pragma HLS PIPELINE II = 1
-#pragma HLS LOOP_FLATTEN
-        to_kernel.Push(PackedFloat(num));
+        to_kernel.Push(num);
     }
 }
 
 template <int lines_per_number>
 void Write(hlslib::Stream<PackedFloat> &from_kernel, DramLine *const mem, const int size) {
     DramLine flits[kLinesPerNumber];
-Write:
+WriteFake:
     for (int i = 0; i < size; ++i) {
 #pragma HLS PIPELINE II = 1
         from_kernel.Pop().UnpackFlits(flits);
     }
+WriteFlits:
     for (int j = 0; j < kLinesPerNumber; ++j) {
 #pragma HLS PIPELINE II = 1
         mem[j] = flits[j];
@@ -98,6 +100,14 @@ Write:
 }
 
 #endif
+
+void ReadA(DramLine const *const mem, hlslib::Stream<PackedFloat> &to_kernel, const int size) {
+    Read<kLinesPerNumber>(mem, to_kernel, size);
+}
+
+void ReadB(DramLine const *const mem, hlslib::Stream<PackedFloat> &to_kernel, const int size) {
+    Read<kLinesPerNumber>(mem, to_kernel, size);
+}
 
 void Compute(hlslib::Stream<PackedFloat> &a_in, hlslib::Stream<PackedFloat> &b_in, hlslib::Stream<PackedFloat> &c_out,
              const int size) {
@@ -125,8 +135,8 @@ void Microbenchmark(DramLine const *const a, DramLine const *const b, DramLine *
     hlslib::Stream<PackedFloat, 16> b_to_kernel("b_to_kernel");
     hlslib::Stream<PackedFloat, 16> c_from_kernel("c_from_kernel");
     HLSLIB_DATAFLOW_INIT();
-    HLSLIB_DATAFLOW_FUNCTION(Read<kLinesPerNumber>, a, a_to_kernel, size);
-    HLSLIB_DATAFLOW_FUNCTION(Read<kLinesPerNumber>, b, b_to_kernel, size);
+    HLSLIB_DATAFLOW_FUNCTION(ReadA, a, a_to_kernel, size);
+    HLSLIB_DATAFLOW_FUNCTION(ReadB, b, b_to_kernel, size);
     HLSLIB_DATAFLOW_FUNCTION(Compute, a_to_kernel, b_to_kernel, c_from_kernel, size);
     HLSLIB_DATAFLOW_FUNCTION(Write<kLinesPerNumber>, c_from_kernel, c, size);
     HLSLIB_DATAFLOW_FINALIZE();

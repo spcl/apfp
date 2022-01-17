@@ -147,7 +147,7 @@ bool RunTest(std::string const &kernel_path, int size, bool verify) {
 
     // Copy back result
     std::cout << "Copying back result..." << std::flush;
-#ifndef APFP_FAKE_MEMORYH
+#ifndef APFP_FAKE_MEMORY
     std::vector<PackedFloat> result(size);
     for (int i = 0; i < kComputeUnits; ++i) {
         c_device[i].CopyToHost(0, kLinesPerNumber * partition_size[i],

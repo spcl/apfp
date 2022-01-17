@@ -10,7 +10,7 @@ set(APFP_MULT_BASE_BITS 18 CACHE STRING "Number of bits to bottom out the multip
 set(APFP_TILE_SIZE_N 32 CACHE STRING "Tile size in the N-dimension when running matrix-matrix multiplication.")
 set(APFP_TILE_SIZE_M 32 CACHE STRING "Tile size in the M-dimension when running matrix-matrix multiplication.")
 set(APFP_COMPUTE_UNITS 1 CACHE STRING "Number of replications of the kernel to instantiate.")
-set(APFP_FAKE_MEMORY OFF CACHE STRING "Don't actually read from memory to circumvent memory bottleneck for microbenchmark.")
+set(APFP_FAKE_MEMORY OFF CACHE BOOL "Don't actually read from memory to circumvent memory bottleneck for microbenchmark.")
 set(APFP_SEMANTICS "MPFR" CACHE STRING "Which semantics to use for floating point operations [GMP/MPFR].")
 set(APFP_DEBUGGING OFF CACHE BOOL "Enable debugging in generated kernels.")
 set(APFP_PROFILING OFF CACHE BOOL "Enable profiling in generated kernels.")
@@ -31,7 +31,7 @@ find_package(MPFR REQUIRED)
 find_package(GMP REQUIRED)
 find_package(Threads REQUIRED)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wpedantic -Wno-unused-label -Wno-class-memaccess -Wno-unknown-pragmas -DAPFP_${APFP_SEMANTICS}_SEMANTICS")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wpedantic -Wno-unused-label -Wno-class-memaccess -Wno-unknown-pragmas -DAPFP_${APFP_SEMANTICS}_SEMANTICS -DAP_INT_MAX_W=${APFP_MAX_BITS}")
 if(APFP_FAKE_MEMORY)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DAPFP_FAKE_MEMORY")
 endif()
@@ -94,10 +94,14 @@ if(${APFP_COMPUTE_UNITS} GREATER 8)
 endif()
 
 # Setup FPGA kernel targets
+set(APFP_HLS_FLAGS "-DAP_INT_MAX_W=${APFP_MAX_BITS} -DAPFP_${APFP_SEMANTICS}_SEMANTICS")
+if(APFP_FAKE_MEMORY)
+    set(APFP_HLS_FLAGS "${APFP_HLS_FLAGS} -DAPFP_FAKE_MEMORY")
+endif()
 add_vitis_kernel(Microbenchmark FILES ${APFP_KERNEL_FILES}
                  COMPUTE_UNITS ${APFP_COMPUTE_UNITS}
                  INCLUDE_DIRS include hlslib/include ${CMAKE_BINARY_DIR}
-                 HLS_FLAGS "-DAP_INT_MAX_W=${APFP_MAX_BITS} -DAPFP_${APFP_SEMANTICS}_SEMANTICS"
+                 HLS_FLAGS ${APFP_HLS_FLAGS}
                  HLS_CONFIG "config_compile -pipeline_style frp\nconfig_dataflow -fifo_depth 16"
                  DEPENDS ${CMAKE_BINARY_DIR}/Config.h
                          include/ArithmeticOperations.h

@@ -5,6 +5,8 @@
 
 #include "ArithmeticOperations.h"
 
+#ifndef APFP_FAKE_MEMORY
+
 template <int lines_per_number>
 void Read(DramLine const *const mem, hlslib::Stream<PackedFloat> &to_kernel, const int size) {
     DramLine num[kLinesPerNumber];
@@ -61,6 +63,41 @@ Write:
         mem[i] = num[0];
     }
 }
+
+#else
+
+template <int lines_per_number>
+void Read(DramLine const *const mem, hlslib::Stream<PackedFloat> &to_kernel, const int size) {
+    DramLine flits[kLinesPerNumber];
+#pragma HLS ARRAY_PARTITION variable = num complete
+    for (int j = 0; j < kLinesPerNumber; ++j) {
+#pragma HLS PIPELINE II = 1
+        flits[j] = mem[j];
+    }
+    const PackedFloat num(flits);
+Read:
+    for (int i = 0; i < size; ++i) {
+#pragma HLS PIPELINE II = 1
+#pragma HLS LOOP_FLATTEN
+        to_kernel.Push(PackedFloat(num));
+    }
+}
+
+template <int lines_per_number>
+void Write(hlslib::Stream<PackedFloat> &from_kernel, DramLine *const mem, const int size) {
+    DramLine flits[kLinesPerNumber];
+Write:
+    for (int i = 0; i < size; ++i) {
+#pragma HLS PIPELINE II = 1
+        from_kernel.Pop().UnpackFlits(flits);
+    }
+    for (int j = 0; j < kLinesPerNumber; ++j) {
+#pragma HLS PIPELINE II = 1
+        mem[j] = flits[j];
+    }
+}
+
+#endif
 
 void Compute(hlslib::Stream<PackedFloat> &a_in, hlslib::Stream<PackedFloat> &b_in, hlslib::Stream<PackedFloat> &c_out,
              const int size) {

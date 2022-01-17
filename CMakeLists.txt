@@ -10,6 +10,7 @@ set(APFP_MULT_BASE_BITS 18 CACHE STRING "Number of bits to bottom out the multip
 set(APFP_TILE_SIZE_N 32 CACHE STRING "Tile size in the N-dimension when running matrix-matrix multiplication.")
 set(APFP_TILE_SIZE_M 32 CACHE STRING "Tile size in the M-dimension when running matrix-matrix multiplication.")
 set(APFP_COMPUTE_UNITS 1 CACHE STRING "Number of replications of the kernel to instantiate.")
+set(APFP_FAKE_MEMORY OFF CACHE STRING "Don't actually read from memory to circumvent memory bottleneck for microbenchmark.")
 set(APFP_SEMANTICS "MPFR" CACHE STRING "Which semantics to use for floating point operations [GMP/MPFR].")
 set(APFP_DEBUGGING OFF CACHE BOOL "Enable debugging in generated kernels.")
 set(APFP_PROFILING OFF CACHE BOOL "Enable profiling in generated kernels.")
@@ -31,6 +32,9 @@ find_package(GMP REQUIRED)
 find_package(Threads REQUIRED)
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wpedantic -Wno-unused-label -Wno-class-memaccess -Wno-unknown-pragmas -DAPFP_${APFP_SEMANTICS}_SEMANTICS")
+if(APFP_FAKE_MEMORY)
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DAPFP_FAKE_MEMORY")
+endif()
 include_directories(${CMAKE_BINARY_DIR} include SYSTEM hlslib/include ${Vitis_INCLUDE_DIRS} )
 
 configure_file(include/Config.h.in Config.h)
@@ -131,7 +135,7 @@ target_link_libraries(TestHardware apfp simulation ${Vitis_LIBRARIES} ${GMP_LIBR
 
 # Testing
 enable_testing()
-add_test(TestSimulation TestSimulation 4 4 4)
+add_test(TestSimulation TestSimulation 128)
 add_library(Catch host/Catch.cpp)
 add_executable(UnitTests host/UnitTests.cpp)
 target_link_libraries(UnitTests Catch ${GMP_LIBRARIES} ${MPFR_LIBRARIES} apfp simulation)

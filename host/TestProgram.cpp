@@ -150,6 +150,7 @@ bool RunTest(std::string const &kernel_path, int size, bool verify) {
     std::cout << "Ran in " << elapsed_reference << " seconds.\n";
 
     // Verify results
+#ifndef APFP_FAKE_MEMORY
     for (int i = 0; i < size; ++i) {
         const PackedFloat res = result[i];
         const PackedFloat ref(c_mpfr[i]);
@@ -158,6 +159,14 @@ bool RunTest(std::string const &kernel_path, int size, bool verify) {
             return false;
         }
     }
+#else
+    const PackedFloat res = result[0];
+    const PackedFloat ref(c_mpfr[0]);
+    if (res != ref) {
+        std::cerr << "Verification failed:\n\t" << res << "\n\t" << ref << "\n";
+        return false;
+    }
+#endif
     std::cout << "Results successfully verified against MPFR.\n";
 
     // Clean up

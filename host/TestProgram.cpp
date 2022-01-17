@@ -92,6 +92,7 @@ bool RunTest(std::string const &kernel_path, int size, bool verify) {
     std::vector<hlslib::ocl::Buffer<DramLine, hlslib::ocl::Access::readWrite>> c_device;
     for (int i = 0; i < kComputeUnits; ++i) {
         const auto bank = i % 4;
+#ifndef APFP_FAKE_MEMORY
         a_device.emplace_back(context, hlslib::ocl::StorageType::DDR, kDramMapping[bank],
                               kLinesPerNumber * partition_size[i]);
         b_device.emplace_back(context, hlslib::ocl::StorageType::DDR, kDramMapping[bank],
@@ -99,7 +100,6 @@ bool RunTest(std::string const &kernel_path, int size, bool verify) {
         c_device.emplace_back(context, hlslib::ocl::StorageType::DDR, kDramMapping[bank],
                               kLinesPerNumber * partition_size[i]);
         // Copy data to the accelerator cast to 512-bit DRAM lines
-#ifndef APFP_FAKE_MEMORY
         a_device[i].CopyFromHost(0, kLinesPerNumber * partition_size[i],
                                  reinterpret_cast<DramLine const *>(&a_host[i_begin[i]]));
         b_device[i].CopyFromHost(0, kLinesPerNumber * partition_size[i],
@@ -107,6 +107,9 @@ bool RunTest(std::string const &kernel_path, int size, bool verify) {
         c_device[i].CopyFromHost(0, kLinesPerNumber * partition_size[i],
                                  reinterpret_cast<DramLine const *>(&c_host[i_begin[i]]));
 #else
+        a_device.emplace_back(context, hlslib::ocl::StorageType::DDR, kDramMapping[bank], kLinesPerNumber);
+        b_device.emplace_back(context, hlslib::ocl::StorageType::DDR, kDramMapping[bank], kLinesPerNumber);
+        c_device.emplace_back(context, hlslib::ocl::StorageType::DDR, kDramMapping[bank], kLinesPerNumber);
         a_device[i].CopyFromHost(0, kLinesPerNumber, reinterpret_cast<DramLine const *>(&a_host[0]));
         b_device[i].CopyFromHost(0, kLinesPerNumber, reinterpret_cast<DramLine const *>(&b_host[0]));
         c_device[i].CopyFromHost(0, kLinesPerNumber, reinterpret_cast<DramLine const *>(&c_host[0]));

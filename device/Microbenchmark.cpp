@@ -131,7 +131,7 @@ void Microbenchmark(DramLine const *const a, DramLine const *const b, DramLine c
 #pragma HLS INTERFACE m_axi offset = slave port = a bundle = a
 #pragma HLS INTERFACE m_axi offset = slave port = b bundle = b
 #pragma HLS INTERFACE m_axi offset = slave port = c bundle = c
-#pragma HLS INTERFACE m_axi offset = slave port = res_out bundle = res_out
+#pragma HLS INTERFACE m_axi offset = slave port = res bundle = res
 #pragma HLS INTERFACE s_axilite port = a
 #pragma HLS INTERFACE s_axilite port = b
 #pragma HLS INTERFACE s_axilite port = c

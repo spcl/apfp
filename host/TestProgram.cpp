@@ -121,8 +121,9 @@ bool RunTest(std::string const &kernel_path, int size, bool verify) {
     // Otherwise, the provided path to a kernel binary will be loaded and executed.
     std::vector<hlslib::ocl::Kernel> kernels;
     for (int i = 0; i < kComputeUnits; ++i) {
-        kernels.emplace_back(program.MakeKernel(Microbenchmark, "Microbenchmark", a_device[i], b_device[i], c_device[i],
-                                                partition_size[i]));
+        kernels.emplace_back(program.MakeKernel(Microbenchmark,
+                                                "Microbenchmark:{Microbenchmark_" + std::to_string(i + 1) + "}",
+                                                a_device[i], b_device[i], c_device[i], partition_size[i]));
     }
 
     const float expected_runtime = expected_cycles / 0.3e9;

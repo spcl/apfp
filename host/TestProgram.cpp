@@ -163,7 +163,7 @@ bool RunTest(std::string const &kernel_path, int size, bool verify) {
 
     // Run reference implementation. Because of GMP's "clever" way of wrapping their struct in an array of size 1,
     // allocating and passing arrays of GMP numbers is a mess
-    std::cout << "Running reference implementation...\n";
+    std::cout << "Running reference implementation..." << std::endl;
     start = std::chrono::high_resolution_clock::now();
     MicrobenchmarkReference(reinterpret_cast<mpfr_t const *>(&a_mpfr[0]), reinterpret_cast<mpfr_t const *>(&b_mpfr[0]),
                             reinterpret_cast<mpfr_t *>(&c_mpfr[0]), size);
@@ -184,7 +184,7 @@ bool RunTest(std::string const &kernel_path, int size, bool verify) {
 #else
     for (int i = 0; i < kComputeUnits; ++i) {
         const PackedFloat res = result[i];
-        const PackedFloat ref(c_mpfr[i]);
+        const PackedFloat ref(c_mpfr[0]);
         if (res != ref) {
             std::cerr << "Verification failed for compute unit " << i << ":\n\t" << res << "\n\t" << ref << "\n";
             return false;

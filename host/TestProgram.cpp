@@ -112,8 +112,9 @@ bool RunTest(std::string const &kernel_path, int size_n, int size_k, int size_m,
     // Otherwise, the provided path to a kernel binary will be loaded and executed.
     std::vector<hlslib::ocl::Kernel> kernels;
     for (int i = 0; i < kComputeUnits; ++i) {
-        kernels.emplace_back(program.MakeKernel(MatrixMultiplication, "MatrixMultiplication", a_device[i], b_device[i],
-                                                c_device[i], c_device[i], n_partition_size[i], size_k, size_m));
+        kernels.emplace_back(program.MakeKernel(
+            MatrixMultiplication, "MatrixMultiplication:{MatrixMultiplication_" + std::to_string(i + 1) + "}",
+            a_device[i], b_device[i], c_device[i], c_device[i], n_partition_size[i], size_k, size_m));
     }
 
     const float expected_runtime = expected_cycles / 0.3e9;

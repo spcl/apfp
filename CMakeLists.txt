@@ -30,7 +30,7 @@ find_package(MPFR REQUIRED)
 find_package(GMP REQUIRED)
 find_package(Threads REQUIRED)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wpedantic -Wno-unused-label -Wno-class-memaccess -Wno-unknown-pragmas -DAPFP_${APFP_SEMANTICS}_SEMANTICS")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wpedantic -Wno-unused-label -Wno-class-memaccess -Wno-unknown-pragmas -DAPFP_${APFP_SEMANTICS}_SEMANTICS -DAP_INT_MAX_W=${APFP_MAX_BITS}")
 include_directories(${CMAKE_BINARY_DIR} include SYSTEM hlslib/include ${Vitis_INCLUDE_DIRS} )
 
 configure_file(include/Config.h.in Config.h)

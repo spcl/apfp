@@ -39,63 +39,18 @@ set(APFP_KERNEL_FILES device/MatrixMultiplication.cpp
                       device/ArithmeticOperations.cpp
                       device/Karatsuba.cpp)
 
-# Mapping to DDR ports
-set(APFP_PORT_MAPPING MatrixMultiplication_1.m_axi_a:DDR[1]
-                      MatrixMultiplication_1.m_axi_b:DDR[1]
-                      MatrixMultiplication_1.m_axi_c_read:DDR[1]
-                      MatrixMultiplication_1.m_axi_c_write:DDR[1])
-if(${APFP_COMPUTE_UNITS} GREATER 1)
+# Mapping to DDR ports (currently hardcoded to U250, should be configurable)
+set(APFP_BANK_ROTATION 1 0 2 3)
+foreach(APFP_CU RANGE 1 ${APFP_COMPUTE_UNITS})
+    math(EXPR APFP_CU_ZERO "${APFP_CU} - 1")  # Zero-indexing iterator
+    math(EXPR APFP_CU_INDEX "${APFP_CU_ZERO} % 4")
+    list(GET APFP_BANK_ROTATION ${APFP_CU_INDEX} APFP_BANK_INDEX)
     set(APFP_PORT_MAPPING ${APFP_PORT_MAPPING}
-                          MatrixMultiplication_2.m_axi_a:DDR[0]
-                          MatrixMultiplication_2.m_axi_b:DDR[0]
-                          MatrixMultiplication_2.m_axi_c_read:DDR[0]
-                          MatrixMultiplication_2.m_axi_c_write:DDR[0])
-endif()
-if(${APFP_COMPUTE_UNITS} GREATER 2)
-    set(APFP_PORT_MAPPING ${APFP_PORT_MAPPING}
-                          MatrixMultiplication_3.m_axi_a:DDR[2]
-                          MatrixMultiplication_3.m_axi_b:DDR[2]
-                          MatrixMultiplication_3.m_axi_c_read:DDR[2]
-                          MatrixMultiplication_3.m_axi_c_write:DDR[2])
-endif()
-if(${APFP_COMPUTE_UNITS} GREATER 3)
-    set(APFP_PORT_MAPPING ${APFP_PORT_MAPPING}
-                          MatrixMultiplication_4.m_axi_a:DDR[3]
-                          MatrixMultiplication_4.m_axi_b:DDR[3]
-                          MatrixMultiplication_4.m_axi_c_read:DDR[3]
-                          MatrixMultiplication_4.m_axi_c_write:DDR[3])
-endif()
-if(${APFP_COMPUTE_UNITS} GREATER 4)
-    set(APFP_PORT_MAPPING ${APFP_PORT_MAPPING}
-                          MatrixMultiplication_5.m_axi_a:DDR[1]
-                          MatrixMultiplication_5.m_axi_b:DDR[1]
-                          MatrixMultiplication_5.m_axi_c_read:DDR[1]
-                          MatrixMultiplication_5.m_axi_c_write:DDR[1])
-endif()
-if(${APFP_COMPUTE_UNITS} GREATER 5)
-    set(APFP_PORT_MAPPING ${APFP_PORT_MAPPING}
-                          MatrixMultiplication_6.m_axi_a:DDR[0]
-                          MatrixMultiplication_6.m_axi_b:DDR[0]
-                          MatrixMultiplication_6.m_axi_c_read:DDR[0]
-                          MatrixMultiplication_6.m_axi_c_write:DDR[0])
-endif()
-if(${APFP_COMPUTE_UNITS} GREATER 6)
-    set(APFP_PORT_MAPPING ${APFP_PORT_MAPPING}
-                          MatrixMultiplication_7.m_axi_a:DDR[2]
-                          MatrixMultiplication_7.m_axi_b:DDR[2]
-                          MatrixMultiplication_7.m_axi_c_read:DDR[2]
-                          MatrixMultiplication_7.m_axi_c_write:DDR[2])
-endif()
-if(${APFP_COMPUTE_UNITS} GREATER 7)
-    set(APFP_PORT_MAPPING ${APFP_PORT_MAPPING}
-                          MatrixMultiplication_8.m_axi_a:DDR[3]
-                          MatrixMultiplication_8.m_axi_b:DDR[3]
-                          MatrixMultiplication_8.m_axi_c_read:DDR[3]
-                          MatrixMultiplication_8.m_axi_c_write:DDR[3])
-endif()
-if(${APFP_COMPUTE_UNITS} GREATER 8)
-    message(FATAL_ERROR "More than 8 compute units is not supported.")
-endif()
+                          MatrixMultiplication_${APFP_CU}.m_axi_a:DDR[${APFP_BANK_INDEX}]
+                          MatrixMultiplication_${APFP_CU}.m_axi_b:DDR[${APFP_BANK_INDEX}]
+                          MatrixMultiplication_${APFP_CU}.m_axi_c_read:DDR[${APFP_BANK_INDEX}]
+                          MatrixMultiplication_${APFP_CU}.m_axi_c_write:DDR[${APFP_BANK_INDEX}])
+endforeach()
 
 # Setup FPGA kernel targets
 add_vitis_kernel(MatrixMultiplication FILES ${APFP_KERNEL_FILES}

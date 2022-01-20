@@ -6,7 +6,9 @@ set(CMAKE_CXX_STANDARD 17)
 # Target options 
 set(APFP_PLATFORM "xilinx_u250_gen3x16_xdma_3_1_202020_1" CACHE STRING "Platform string for Vitis.")
 set(APFP_BITS 1024 CACHE STRING "Number of bits to use for a floating point number, including mantissa, exponent, and sign.")
-set(APFP_MULT_BASE_BITS 18 CACHE STRING "Number of bits to bottom out the multiplication at and use native multiplication.")
+set(APFP_MULT_BASE_BITS 36 CACHE STRING "Number of bits to bottom out the multiplication at and use native multiplication.")
+set(APFP_ADD_BASE_BITS 256 CACHE STRING "Number of bits to bottom out and use the built-in adder.")
+set(APFP_USE_PIPELINED_ADD ON CACHE BOOL "Use custom pipelined adder to insert more pipeline stages.")
 set(APFP_TILE_SIZE_N 32 CACHE STRING "Tile size in the N-dimension when running matrix-matrix multiplication.")
 set(APFP_TILE_SIZE_M 32 CACHE STRING "Tile size in the M-dimension when running matrix-matrix multiplication.")
 set(APFP_COMPUTE_UNITS 1 CACHE STRING "Number of replications of the kernel to instantiate.")
@@ -23,6 +25,11 @@ if(NOT APFP_ALIGNED EQUAL 0)
     message(FATAL_ERROR "Number of bits ${APFP_BITS} must be aligned to the DRAM line size of 512 bits.")
 endif()
 math(EXPR APFP_MAX_BITS "${APFP_BITS} * 2 + 1")
+
+if(APFP_USE_PIPELINED_ADD)
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DAPFP_USE_PIPELINED_ADD")
+  set(APFP_HLS_FLAGS "${APFP_HLS_FLAGS} -DAPFP_USE_PIPELINED_ADD")
+endif()
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_SOURCE_DIR}/hlslib/cmake ${CMAKE_SOURCE_DIR}/cmake)
 
@@ -56,10 +63,11 @@ foreach(APFP_CU RANGE 1 ${APFP_COMPUTE_UNITS})
 endforeach()
 
 # Setup FPGA kernel targets
+set(APFP_HLS_FLAGS "${APFP_HLS_FLAGS} -std=c++17 -DAP_INT_MAX_W=${APFP_MAX_BITS} -DAPFP_${APFP_SEMANTICS}_SEMANTICS")
 add_vitis_kernel(MatrixMultiplication FILES ${APFP_KERNEL_FILES}
                  COMPUTE_UNITS ${APFP_COMPUTE_UNITS}
                  INCLUDE_DIRS include hlslib/include ${CMAKE_BINARY_DIR}
-                 HLS_FLAGS "-DAP_INT_MAX_W=${APFP_MAX_BITS} -DAPFP_${APFP_SEMANTICS}_SEMANTICS"
+                 HLS_FLAGS ${APFP_HLS_FLAGS}
                  HLS_CONFIG "config_compile -pipeline_style frp\nconfig_dataflow -fifo_depth 16"
                  DEPENDS ${CMAKE_BINARY_DIR}/Config.h
                          include/ArithmeticOperations.h

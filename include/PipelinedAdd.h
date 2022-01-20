@@ -3,17 +3,25 @@
 #include <ap_int.h>
 #include <hlslib/xilinx/Utility.h>
 
+#include <limits>
+
+#include "Config.h"
+
 namespace {
 
-constexpr int kPipelinedAddBaseBits = 256;
+#ifdef APFP_USE_PIPELINE_ADD
+constexpr int kPipelinedAddBaseBits = kAddBaseBits;
+#else
+// Bottom out immediately, falling back on the Xilinx implementation regardless of the bit width, but continuing to use
+// kAddBaseBits to inject some pipeline stages
+constexpr int kPipelinedAddBaseBits = std::numeric_limits<int>::max();
+#endif
 
 constexpr int AddLatency(int bits) {
     // 4 is the maximum supported latency of integer adds using the BIND_OP pragma
-    return (bits <= kPipelinedAddBaseBits / 4)
+    return (bits <= kAddBaseBits / 4)
                ? 0
-               : (bits <= kPipelinedAddBaseBits / 2)
-                     ? 1
-                     : (bits <= 3 * (kPipelinedAddBaseBits / 4)) ? 2 : (bits <= kPipelinedAddBaseBits) ? 3 : 4;
+               : (bits <= kAddBaseBits / 2) ? 1 : (bits <= 3 * (kAddBaseBits / 4)) ? 2 : (bits <= kAddBaseBits) ? 3 : 4;
 }
 
 template <int total_bits, int num_steps, int step>
@@ -73,11 +81,7 @@ auto PipelinedAdd(ap_uint<bits> const &a, ap_uint<bits> const &b, bool carry_in 
 }
 
 template <int bits>
-auto PipelinedSub(ap_uint<bits> const &a, ap_uint<bits> const &b) -> ap_uint<bits + 1> {
+auto PipelinedSub(ap_uint<bits> const &a, ap_uint<bits> const &b) -> ap_uint<bits + 2> {
 #pragma HLS INLINE
-    ap_uint<bits + 1> result;
-    constexpr int num_steps = hlslib::CeilDivide(bits, kPipelinedAddBaseBits);
-    const auto carry = _PipelinedAddImpl<bits, num_steps, num_steps>::Apply(a, ~b, result, true);
-    result.set_bit(bits, carry);
-    return result;
+    return PipelinedAdd<bits>(a, ~b, true);
 }

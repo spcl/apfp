@@ -10,6 +10,7 @@ set(APFP_MULT_BASE_BITS 18 CACHE STRING "Number of bits to bottom out the multip
 set(APFP_TILE_SIZE_N 32 CACHE STRING "Tile size in the N-dimension when running matrix-matrix multiplication.")
 set(APFP_TILE_SIZE_M 32 CACHE STRING "Tile size in the M-dimension when running matrix-matrix multiplication.")
 set(APFP_COMPUTE_UNITS 1 CACHE STRING "Number of replications of the kernel to instantiate.")
+set(APFP_FIX_SLRS OFF CACHE STRING "Fix compute units to SLRs. Will not work for larger kernels that spill across SLRs.")
 set(APFP_SEMANTICS "MPFR" CACHE STRING "Which semantics to use for floating point operations [GMP/MPFR].")
 set(APFP_DEBUGGING OFF CACHE BOOL "Enable debugging in generated kernels.")
 set(APFP_PROFILING OFF CACHE BOOL "Enable profiling in generated kernels.")
@@ -42,14 +43,16 @@ set(APFP_KERNEL_FILES device/MatrixMultiplication.cpp
 # Mapping to DDR ports (currently hardcoded to U250, should be configurable)
 set(APFP_BANK_ROTATION 1 0 2 3)
 foreach(APFP_CU RANGE 1 ${APFP_COMPUTE_UNITS})
-    math(EXPR APFP_CU_ZERO "${APFP_CU} - 1")  # Zero-indexing iterator
-    math(EXPR APFP_CU_INDEX "${APFP_CU_ZERO} % 4")
+    math(EXPR APFP_CU_INDEX "(${APFP_CU} - 1) % 4")
     list(GET APFP_BANK_ROTATION ${APFP_CU_INDEX} APFP_BANK_INDEX)
     set(APFP_PORT_MAPPING ${APFP_PORT_MAPPING}
                           MatrixMultiplication_${APFP_CU}.m_axi_a:DDR[${APFP_BANK_INDEX}]
                           MatrixMultiplication_${APFP_CU}.m_axi_b:DDR[${APFP_BANK_INDEX}]
                           MatrixMultiplication_${APFP_CU}.m_axi_c_read:DDR[${APFP_BANK_INDEX}]
                           MatrixMultiplication_${APFP_CU}.m_axi_c_write:DDR[${APFP_BANK_INDEX}])
+    if(APFP_FIX_SLRS)
+        set(APFP_SLR_MAPPING ${APFP_SLR_MAPPING} MatrixMultiplication_${APFP_CU}:SLR${APFP_BANK_INDEX})
+    endif()
 endforeach()
 
 # Setup FPGA kernel targets
@@ -65,7 +68,8 @@ add_vitis_kernel(MatrixMultiplication FILES ${APFP_KERNEL_FILES}
                          include/MatrixMultiplication.h
                          include/PackedFloat.h
                          include/PipelinedAdd.h
-                PORT_MAPPING ${APFP_PORT_MAPPING})
+                PORT_MAPPING ${APFP_PORT_MAPPING}
+                SLR_MAPPING ${APFP_SLR_MAPPING})
 add_vitis_program(MatrixMultiplication ${APFP_PLATFORM}
                   PROFILING ${APFP_PROFILING}
                   DEBUGGING ${APFP_DEBUGGING}

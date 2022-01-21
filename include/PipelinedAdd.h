@@ -9,7 +9,7 @@
 
 namespace {
 
-#ifdef APFP_USE_PIPELINE_ADD
+#ifdef APFP_USE_PIPELINED_ADD
 constexpr int kPipelinedAddBaseBits = kAddBaseBits;
 #else
 // Bottom out immediately, falling back on the Xilinx implementation regardless of the bit width, but continuing to use

@@ -32,12 +32,15 @@ auto _Karatsuba(ap_uint<bits> const &a, ap_uint<bits> const &b) ->
     bool a0a1b0b1_is_neg = a0a1_is_neg != b0b1_is_neg;
     // Recurse on |a_0 - a_1| * |b_0 - b_1|
     Full a0a1b0b1 = _Karatsuba<bits / 2>(a0a1, b0b1);
-    ap_int<bits + 2> a0a1b0b1_signed = a0a1b0b1_is_neg ? -ap_int<bits + 1>(a0a1b0b1) : ap_int<bits + 2>(a0a1b0b1);
-    ap_uint<bits + 2> z1 = PipelinedAdd<bits + 2>(ap_uint<bits + 2>(a0a1b0b1_signed), PipelinedAdd<bits>(z0, z2));
+    ap_int<bits + 1> a0a1b0b1_signed = a0a1b0b1_is_neg ? -ap_int<bits + 1>(a0a1b0b1) : ap_int<bits + 2>(a0a1b0b1);
+    ap_uint<bits + 1> z1 = PipelinedAdd<bits + 1>(ap_uint<bits + 1>(a0a1b0b1_signed), PipelinedAdd<bits>(z0, z2));
 
     // Align everything and combine
-    ap_uint<(2 * bits)> z0z2 = z0 | (ap_uint<(2 * bits)>(z2) << bits);
-    ap_uint<(bits + 2 + bits / 2)> z1_aligned = ap_uint<(bits + 2 + bits / 2)>(z1) << (bits / 2);
+    ap_uint<(2 * bits)> z0z2;
+    z0z2.range(bits - 1, 0) = z0;
+    z0z2.range(2 * bits - 1, bits) = z2;
+    ap_uint<(bits + 1 + bits / 2)> z1_aligned(0);
+    z1_aligned.range(bits / 2 + bits, bits / 2) = z1;
     ap_uint<(2 * bits) + 1> z = PipelinedAdd<2 * bits>(z1_aligned, z0z2);
 
     return z;

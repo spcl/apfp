@@ -5,6 +5,7 @@ set(CMAKE_CXX_STANDARD 17)
 
 # Target options 
 set(APFP_PLATFORM "xilinx_u250_gen3x16_xdma_3_1_202020_1" CACHE STRING "Platform string for Vitis.")
+set(APFP_FREQUENCY "" CACHE STRING "Target frequency for design (if left empty, the shell's default will be used).")
 set(APFP_BITS 1024 CACHE STRING "Number of bits to use for a floating point number, including mantissa, exponent, and sign.")
 set(APFP_MULT_BASE_BITS 36 CACHE STRING "Number of bits to bottom out the multiplication at and use native multiplication.")
 set(APFP_ADD_BASE_BITS 256 CACHE STRING "Number of bits to bottom out and use the built-in adder.")
@@ -79,6 +80,7 @@ add_vitis_kernel(MatrixMultiplication FILES ${APFP_KERNEL_FILES}
                 PORT_MAPPING ${APFP_PORT_MAPPING}
                 SLR_MAPPING ${APFP_SLR_MAPPING})
 add_vitis_program(MatrixMultiplication ${APFP_PLATFORM}
+                  CLOCK ${APFP_FREQUENCY}
                   PROFILING ${APFP_PROFILING}
                   DEBUGGING ${APFP_DEBUGGING}
                   SAVE_TEMPS ${APFP_SAVE_TEMPS})

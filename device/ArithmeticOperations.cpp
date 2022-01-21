@@ -36,25 +36,17 @@ ap_uint<bits> DynamicLeftShift(ap_uint<bits> num, ap_uint<hlslib::ConstLog2(bits
 
 PackedFloat Multiply(PackedFloat const &a, PackedFloat const &b) {
     // Pad mantissas to avoid passing awkward sizes to Karatsuba
-    const ap_uint<kBits> a_mantissa_padded(a.GetMantissa());
-    const ap_uint<kBits> b_mantissa_padded(b.GetMantissa());
-#ifdef APFP_GMP_SEMANTICS  // Use GMP semantics
-    constexpr auto kLimbBits = 8 * sizeof(mp_limb_t);
-    // Meat of the computation. Only keep the top bits of the computation and throw away the rest
-    const ap_uint<(2 * kMantissaBits)> _m_mantissa = Karatsuba(a_mantissa_padded, b_mantissa_padded);
-    const bool limb_zero = _m_mantissa.range(kMantissaBits + kLimbBits - 1, kMantissaBits) == 0;
-    ap_uint<kMantissaBits + kLimbBits> m_mantissa = _m_mantissa;  // Truncate
-    const Exponent m_exponent = a.GetExponent() + b.GetExponent() - limb_zero;
-#else  // Otherwise use MPFR semantics
+    const ap_uint<kMantissaBits> a_mantissa = a.GetMantissa();
+    const ap_uint<kMantissaBits> b_mantissa = b.GetMantissa();
     const ap_uint<kMantissaBits + 1> _m_mantissa =
-        Karatsuba(a_mantissa_padded, b_mantissa_padded) >> (kMantissaBits - 1);
+        Karatsuba(a_mantissa, b_mantissa).range(2 * kMantissaBits - 1, kMantissaBits - 1);
     // We need to shift the mantissa forward if the most significant bit is not set
     const bool should_be_shifted = !IsMostSignificantBitSet(_m_mantissa);
-    ap_uint<kMantissaBits + 1> m_mantissa = should_be_shifted ? _m_mantissa : (_m_mantissa >> 1);
+    const ap_uint<kMantissaBits> m_mantissa =
+        should_be_shifted ? _m_mantissa.range(kMantissaBits - 1, 0) : _m_mantissa.range(kMantissaBits, 1);
     // Add up exponents. If the most significant bit was 1, we're done. Otherwise subtract 1 due to
     // the shift.
-    const Exponent m_exponent = a.GetExponent() + b.GetExponent() - (should_be_shifted ? 1 : 0);
-#endif
+    const Exponent m_exponent = a.GetExponent() + b.GetExponent() - should_be_shifted;
     // The sign is just the XOR of the existing signs
     PackedFloat result;
     result.SetMantissa(m_mantissa);
@@ -66,7 +58,6 @@ PackedFloat Multiply(PackedFloat const &a, PackedFloat const &b) {
 // Does this correctly output the result if a and b are different signs?
 // The mantissa of the result should depend on the sign bits of a and b
 PackedFloat Add(PackedFloat const &a_in, PackedFloat const &b_in) {
-
     // Retrieve once and for all to make sure there's no overhead from unpacking them
     const bool _a_sign = a_in.GetSign();
     const bool _b_sign = b_in.GetSign();

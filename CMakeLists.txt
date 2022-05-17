@@ -15,7 +15,7 @@ set(APFP_FIX_SLRS OFF CACHE STRING "Fix compute units to SLRs. Will not work for
 set(APFP_SEMANTICS "MPFR" CACHE STRING "Which semantics to use for floating point operations [GMP/MPFR].")
 set(APFP_DEBUGGING OFF CACHE BOOL "Enable debugging in generated kernels.")
 set(APFP_PROFILING OFF CACHE BOOL "Enable profiling in generated kernels.")
-set(APFP_SAVE_TEMPS ON CACHE BOOL "Save temporary files from kernel builds.")
+set(APFP_SAVE_TEMPS OFF CACHE BOOL "Save temporary files from kernel builds.")
 set_property(CACHE APFP_SEMANTICS PROPERTY STRINGS GMP MPFR)
 
 # Validation and derived numbers
